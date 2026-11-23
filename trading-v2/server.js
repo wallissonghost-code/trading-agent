@@ -4,6 +4,7 @@ import { SYMBOLS, getKlines } from './market.js';
 import { createPaperRunner } from './paper.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { performance } from './performance.js';
+import { summarizeSignalOutcomes } from './signal-evaluation.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -67,6 +68,12 @@ else if(path==='/api/performance'){
     const summary=performance(recent,paper.status().startingCash||10000);
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
+}
+else if(path==='/api/signal-evaluation'){
+  try{
+    const latest=paperStore?.listSignalOutcomes?await paperStore.listSignalOutcomes({limit:250}):[];
+    data={ok:true,...summarizeSignalOutcomes(latest),source:paperStore?'supabase':'unavailable',sampleLimit:250,partialHistory:latest.length===250};
+  }catch(err){data={ok:false,error:'Avaliação de sinais indisponível',mode:'OBSERVATION_ONLY'};console.error('Signal evaluation read failed:',String(err.message||err).slice(0,120));}
 }
 else if(path==='/api/decisions'){
   try{
