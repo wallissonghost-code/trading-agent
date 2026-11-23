@@ -44,3 +44,18 @@ test('account values reflect cash and marked positions',()=>{
  const a=createAccount();a.cash=8999;a.positions.BTCUSDT={symbol:'BTCUSDT',entry:100,quantity:10,cost:1001,stop:95,take:110};
  const s=snapshot(a,{BTCUSDT:105});assert.equal(s.equity,10049);
 });
+
+test('halts on persistence failure and does not commit an unsaved candle',async()=>{
+ let writes=0;
+ const runner=createPaperRunner({
+   store:{kind:'test_remote',load:async()=>createAccount(),save:async()=>{writes++;throw Error('offline')}},
+   fetchKlines:async()=>({candles:candles()})
+ });
+ await runner.init();
+ const state=await runner.runOnce();
+ assert.equal(writes,1);
+ assert.equal(state.ready,false);
+ assert.match(state.storageError,/offline/);
+ assert.deepEqual(state.lastCandle,{});
+ await assert.rejects(()=>runner.runOnce(),/halted/);
+});
