@@ -5,6 +5,7 @@ import { createPaperRunner } from './paper.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { performance } from './performance.js';
 import { summarizeSignalOutcomes } from './signal-evaluation.js';
+import { runStrategyLab } from './strategy-lab.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -68,6 +69,21 @@ else if(path==='/api/performance'){
     const summary=performance(recent,paper.status().startingCash||10000);
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
+}
+else if(path==='/api/strategy-lab'){
+  const symbols=SYMBOLS;
+  const results=await Promise.all(symbols.map(async symbol=>{
+    try{
+      const market=await getKlines(symbol,{limit:500});
+      return {ok:true,...runStrategyLab(market.candles,{symbol})};
+    }catch(error){
+      console.error('Strategy lab market error:',symbol,String(error.message||error).slice(0,110));
+      return {ok:false,symbol,error:'Dados históricos temporariamente indisponíveis'};
+    }
+  }));
+  data={ok:results.every(r=>r.ok),mode:'RESEARCH_ONLY',autoPromotionEnabled:false,
+    orderExecutionEnabled:false,newsTradingEnabled:false,
+    generatedAt:new Date().toISOString(),results};
 }
 else if(path==='/api/signal-evaluation'){
   try{
