@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { analyze, generateMockCandles } from './engine.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -35,6 +36,7 @@ if(path==='/health')data={ok:true,name:'trading-agent',mode:'SIMULATION_ONLY',up
 else if(path==='/api/status')data=payload();
 else if(path==='/api/agents')data={ok:true,simulated:true,agents};
 else if(path==='/api/market')data={ok:true,dataSource:'synthetic',prices};
+else if(path==='/api/analysis')data={ok:true,mode:'SIMULATION_ONLY',dataSource:'synthetic',reports:agents.map(a=>({agent:a.name,symbol:a.symbol,...analyze(generateMockCandles(prices[a.symbol]),10000)}))};
 else{res.writeHead(404);return res.end('Not found');}
 res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
 res.end(req.method==='HEAD'?undefined:JSON.stringify(data));
