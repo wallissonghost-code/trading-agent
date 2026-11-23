@@ -37,3 +37,16 @@ test('reads trade ledger without exposing credentials and respects limit',async(
  }});
  assert.deepEqual(await store.listTrades({limit:999}),[trade]);
 });
+
+test('reads private decision journal in descending order',async()=>{
+ const item={symbol:'BTCUSDT',action:'WAIT',candleCloseTime:123,observedAt:'2026-11-23T20:00:00Z'};
+ const store=createSupabaseStore({url:'https://example.supabase.co',key:'private',fetchFn:async(url,opts)=>{
+  assert.equal(opts.method,'GET');
+  assert.equal(opts.headers.apikey,'private');
+  assert.equal(url.pathname,'/rest/v1/trading_paper_decisions');
+  assert.equal(url.searchParams.get('portfolio_id'),'eq.main');
+  assert.equal(url.searchParams.get('order'),'observed_at.desc');
+  return {ok:true,text:async()=>JSON.stringify([{decision:item}])};
+ }});
+ assert.deepEqual(await store.listDecisions({limit:5}),[item]);
+});
