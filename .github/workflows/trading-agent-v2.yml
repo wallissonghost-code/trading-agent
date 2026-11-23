@@ -1,0 +1,26 @@
+name: Trading Agent V2 Tests
+on:
+  push:
+    branches: [trading-agent-v2]
+    paths:
+      - 'trading-v2/**'
+      - '.github/workflows/trading-agent-v2.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: trading-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JavaScript syntax
+        run: |
+          node --check server.js
+          node --check engine.js
+          node --check market.js
+      - name: Run trading simulation unit tests
+        run: npm test
