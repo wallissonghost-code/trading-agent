@@ -68,6 +68,12 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
+else if(path==='/api/decisions'){
+  try{
+    const items=paperStore?.listDecisions?await paperStore.listDecisions({limit:30}):[];
+    data={ok:true,mode:'PAPER_ONLY',source:paperStore?.listDecisions?'supabase':'not_configured',decisions:items,learningEnabled:false,newsTradingEnabled:false};
+  }catch(err){data={ok:false,decisions:[],error:'Diário de decisões indisponível'};console.error('Decision journal read failed:',String(err.message||err).slice(0,120));}
+}
 else if(path==='/api/trade-history'){
   try{
     const recent=paperStore?.listTrades?await paperStore.listTrades({limit:50}):paper.status().trades||[];
