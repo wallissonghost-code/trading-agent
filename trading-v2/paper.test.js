@@ -77,3 +77,17 @@ test('equity and per-agent unrealized return use mark prices, not entry prices',
  assert.equal(state.agentPnl.BTCUSDT.unrealizedPnl,-101.9);
  assert.equal(state.agentPnl.ETHUSDT.unrealizedPnl,0);
 });
+
+test('journals every processed candle including a WAIT decision without replay',()=>{
+ const a=createAccount(),cs=candles();
+ const result=processCandle(a,'BTCUSDT',cs);
+ assert.equal(result.processed,true);
+ assert.equal(a.lastDecision.symbol,'BTCUSDT');
+ assert.equal(a.lastDecision.candleCloseTime,cs.at(-1).closeTime);
+ assert.equal(a.lastDecision.simulated,true);
+ assert.ok(['WAIT','BUY','SELL'].includes(a.lastDecision.action));
+ assert.equal(typeof a.lastDecision.reason,'string');
+ const original=structuredClone(a.lastDecision);
+ assert.equal(processCandle(a,'BTCUSDT',cs).processed,false);
+ assert.deepEqual(a.lastDecision,original);
+});
