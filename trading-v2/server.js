@@ -41,6 +41,30 @@ history.splice(20);
 lastUpdate=new Date().toISOString();
 },3000).unref();
 const payload=()=>{const pnl=Math.round(agents.reduce((s,a)=>s+a.simulatedPnl,0)*100)/100;return {ok:true,version:'2.0.0-preview',mode:'SIMULATION_ONLY',connectedToBinance:false,orderExecutionEnabled:false,dataSource:'synthetic',timestamp:lastUpdate,capital:10000+pnl,pnl,agents,prices,history}};
+// Share one bounded, read-only study across viewers; avoid multiplying Binance requests.
+let strategyLabCache=null,strategyLabPromise=null;
+async function getStrategyLabReport(){
+ if(strategyLabCache&&Date.now()-strategyLabCache.timestamp<300000)return strategyLabCache.value;
+ if(strategyLabPromise)return strategyLabPromise;
+ strategyLabPromise=(async()=>{
+  const results=await Promise.all(SYMBOLS.map(async symbol=>{
+   try{
+    const market=await getKlines(symbol,{limit:500});
+    return {ok:true,...runStrategyLab(market.candles,{symbol})};
+   }catch(err){
+    console.error('Strategy lab market error:',symbol,String(err.message||err).slice(0,110));
+    return {ok:false,symbol,error:'Dados históricos temporariamente indisponíveis'};
+   }
+  }));
+  const report={ok:results.every(r=>r.ok),mode:'RESEARCH_ONLY',
+    autoPromotionEnabled:false,orderExecutionEnabled:false,newsTradingEnabled:false,
+    generatedAt:new Date().toISOString(),results};
+  if(report.ok)strategyLabCache={timestamp:Date.now(),value:report};
+  return report;
+ })();
+ try{return await strategyLabPromise;}
+ finally{strategyLabPromise=null;}
+}
 const server=http.createServer(async(req,res)=>{
 const path=new URL(req.url||'/', 'http://localhost').pathname;
 if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'allow':'GET, HEAD'});return res.end();}
@@ -71,19 +95,7 @@ else if(path==='/api/performance'){
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
 else if(path==='/api/strategy-lab'){
-  const symbols=SYMBOLS;
-  const results=await Promise.all(symbols.map(async symbol=>{
-    try{
-      const market=await getKlines(symbol,{limit:500});
-      return {ok:true,...runStrategyLab(market.candles,{symbol})};
-    }catch(error){
-      console.error('Strategy lab market error:',symbol,String(error.message||error).slice(0,110));
-      return {ok:false,symbol,error:'Dados históricos temporariamente indisponíveis'};
-    }
-  }));
-  data={ok:results.every(r=>r.ok),mode:'RESEARCH_ONLY',autoPromotionEnabled:false,
-    orderExecutionEnabled:false,newsTradingEnabled:false,
-    generatedAt:new Date().toISOString(),results};
+  data=await getStrategyLabReport();
 }
 else if(path==='/api/signal-evaluation'){
   try{
