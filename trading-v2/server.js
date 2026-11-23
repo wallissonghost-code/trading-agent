@@ -42,6 +42,16 @@ const payload=()=>{const pnl=Math.round(agents.reduce((s,a)=>s+a.simulatedPnl,0)
 const server=http.createServer(async(req,res)=>{
 const path=new URL(req.url||'/', 'http://localhost').pathname;
 if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'allow':'GET, HEAD'});return res.end();}
+const robotAssetNames=new Set(['alpha.jpg','nova.jpg','orion.jpg']);
+if(path.startsWith('/assets/')){
+ const filename=path.slice('/assets/'.length);
+ if(!robotAssetNames.has(filename)){res.writeHead(404);return res.end('Not found');}
+ try{
+  const image=await readFile(join(ROOT,'assets',filename));
+  res.writeHead(200,{'content-type':'image/jpeg','cache-control':'public, max-age=86400','x-content-type-options':'nosniff'});
+  return res.end(req.method==='HEAD'?undefined:image);
+ }catch{res.writeHead(404);return res.end('Asset missing');}
+}
 if(path==='/'||path==='/index.html'){
 try{const html=await readFile(join(ROOT,'index.html'));res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-cache','x-content-type-options':'nosniff'});return res.end(req.method==='HEAD'?undefined:html);}
 catch{res.writeHead(500);return res.end('Preview unavailable');}}
