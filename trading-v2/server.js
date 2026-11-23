@@ -1,12 +1,20 @@
 import http from 'node:http';
 import { analyze, generateMockCandles } from './engine.js';
 import { SYMBOLS, getKlines } from './market.js';
+import { createPaperRunner } from './paper.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const boot = Date.now();
+const paper=createPaperRunner({path:process.env.PAPER_STATE_PATH||'/tmp/trading-agent-paper.json'});
+let paperInitError=null;
+async function startPaper(){
+ try{await paper.init();await paper.runOnce();setInterval(()=>paper.runOnce().catch(err=>console.error('paper cycle error:',err.message)),60000).unref();}
+ catch(err){paperInitError=String(err.message||err).slice(0,180);console.error('Paper runner halted:',paperInitError);}
+}
+void startPaper();
 const agents = [
 {id:'alpha',name:'ALPHA',symbol:'BTCUSDT',strategy:'EMA 9/21',simulatedPnl:0,status:'monitoring'},
 {id:'nova',name:'NOVA',symbol:'ETHUSDT',strategy:'RSI + ATR',simulatedPnl:0,status:'monitoring'},
@@ -37,6 +45,7 @@ if(path==='/health')data={ok:true,name:'trading-agent',mode:'SIMULATION_ONLY',up
 else if(path==='/api/status')data=payload();
 else if(path==='/api/agents')data={ok:true,simulated:true,agents};
 else if(path==='/api/market')data={ok:true,dataSource:'synthetic',prices};
+else if(path==='/api/paper')data={ok:paperInitError===null, ...paper.status(),error:paperInitError};
 else if(path==='/api/analysis')data={ok:true,mode:'SIMULATION_ONLY',dataSource:'synthetic',reports:agents.map(a=>({agent:a.name,symbol:a.symbol,...analyze(generateMockCandles(prices[a.symbol]),10000)}))};
 else if(path==='/api/market-live'||path==='/api/analysis-live'){
   const results=await Promise.all(SYMBOLS.map(async(symbol)=>{
