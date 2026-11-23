@@ -14,9 +14,10 @@ export function parseKlines(rows){
   for(let i=1;i<candles.length;i++)if(candles[i].time<=candles[i-1].time)throw new Error('Market candles out of order');
   return candles;
 }
-export async function getKlines(symbol,{fetchFn=fetch,now=Date.now}={}){
+export async function getKlines(symbol,{fetchFn=fetch,now=Date.now,limit=100}={}){
+  if(!Number.isInteger(limit)||limit<50||limit>1000)throw new Error('Invalid candle research limit');
   if(!SYMBOLS.includes(symbol))throw new Error('Unsupported market symbol');
-  const key=symbol+':5m';
+  const key=symbol+':5m:'+limit;
   const stamp=now();
   const prior=cache.get(key);
   if(prior&&stamp-prior.receivedAt<CACHE_MS)return {...prior.result,cached:true};
@@ -29,7 +30,7 @@ export async function getKlines(symbol,{fetchFn=fetch,now=Date.now}={}){
       const url=new URL('/api/v3/klines',BASE);
       url.searchParams.set('symbol',symbol);
       url.searchParams.set('interval','5m');
-      url.searchParams.set('limit','100');
+      url.searchParams.set('limit',String(limit));
       const res=await fetchFn(url,{signal:controller.signal,headers:{accept:'application/json'}});
       if(!res.ok)throw new Error('Binance public data HTTP '+res.status);
       const candles=parseKlines(await res.json());
