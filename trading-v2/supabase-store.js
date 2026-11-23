@@ -17,6 +17,16 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
  }
  return {
   kind:'supabase',
+  async listSignalOutcomes({limit=100}={}){
+   const query=new URL('/rest/v1/trading_paper_signal_outcomes',origin);
+   query.searchParams.set('portfolio_id','eq.'+id);
+   query.searchParams.set('select','symbol,signal,action,decision_candle_close_time,next_candle_return_pct,directional_correct,evaluated_at');
+   query.searchParams.set('order','evaluated_at.desc');
+   query.searchParams.set('limit',String(Math.max(1,Math.min(500,Number(limit)||100))));
+   const rows=await request('GET',query);
+   if(!Array.isArray(rows))throw new Error('Invalid signal evaluation response');
+   return rows;
+  },
   async listDecisions({limit=30}={}){
    const query=new URL('/rest/v1/trading_paper_decisions',origin);
    query.searchParams.set('portfolio_id','eq.'+id);
