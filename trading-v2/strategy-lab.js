@@ -99,7 +99,7 @@ function runSegment(candles,from,to,cfg,signals){
 }
 
 export function runStrategyLab(candles,{symbol='BTCUSDT'}={}){
- if(!Array.isArray(candles)||candles.length<180||candles.length>1000)throw Error('Research requires 180–1000 closed candles');
+ if(!Array.isArray(candles)||candles.length<180||candles.length>3500)throw Error('Research requires 180–3500 closed candles');
  for(let i=0;i<candles.length;i++){
   const c=candles[i];
   if(!c||![c.open,c.high,c.low,c.close,c.closeTime].every(Number.isFinite)||
@@ -107,7 +107,7 @@ export function runStrategyLab(candles,{symbol='BTCUSDT'}={}){
    (i>0&&(c.closeTime<=candles[i-1].closeTime||c.closeTime-candles[i-1].closeTime!==300000)))
    throw Error('Research candles must be valid consecutive closed 5m candles');
  }
- const split=Math.floor(candles.length*.7);
+ const split=Math.round(candles.length*.7);
  const candidates=LAB_CANDIDATES.map(candidate=>{
   const signals=buildSignals(candles,candidate);
   const train=runSegment(candles,40,split,candidate,signals);
