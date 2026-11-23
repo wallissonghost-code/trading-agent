@@ -21,7 +21,13 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
    const query=new URL(base);query.searchParams.set('id','eq.'+id);query.searchParams.set('select','state');
    const rows=await request('GET',query);
    if(!Array.isArray(rows))throw new Error('Invalid remote state response');
-   if(rows.length===0)return createAccount();
+   if(rows.length===0){
+    const initial=createAccount();
+    // Persist genesis immediately to prove remote storage is writable, even when market data is unavailable.
+    const created=await request('POST',base,{id,state:initial,updated_at:new Date().toISOString()});
+    if(!Array.isArray(created)||created.length!==1)throw new Error('Remote initialization not acknowledged');
+    return created[0].state;
+   }
    if(rows.length!==1)throw new Error('Duplicate remote paper state');
    const state=rows[0].state;
    if(state?.schema!==1||!Number.isFinite(state.cash)||state.cash<0||!state.positions||!state.lastCandle||!Array.isArray(state.trades))throw new Error('Invalid remote portfolio state');
