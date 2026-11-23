@@ -50,6 +50,12 @@ else if(path==='/api/status')data=payload();
 else if(path==='/api/agents')data={ok:true,simulated:true,agents};
 else if(path==='/api/market')data={ok:true,dataSource:'synthetic',prices};
 else if(path==='/api/paper')data={ok:paperInitError===null, ...paper.status(),error:paperInitError};
+else if(path==='/api/trade-history'){
+  try{
+    const recent=paperStore?.listTrades?await paperStore.listTrades({limit:50}):paper.status().trades||[];
+    data={ok:true,mode:'PAPER_ONLY',persistent:Boolean(paperStore?.listTrades),trades:recent};
+  }catch(err){data={ok:false,mode:'PAPER_ONLY',trades:[],error:'Não foi possível consultar o histórico permanente'};console.error('Paper ledger read failed:',String(err.message||err).slice(0,130));}
+}
 else if(path==='/api/analysis')data={ok:true,mode:'SIMULATION_ONLY',dataSource:'synthetic',reports:agents.map(a=>({agent:a.name,symbol:a.symbol,...analyze(generateMockCandles(prices[a.symbol]),10000)}))};
 else if(path==='/api/market-live'||path==='/api/analysis-live'){
   const results=await Promise.all(SYMBOLS.map(async(symbol)=>{
