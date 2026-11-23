@@ -155,6 +155,22 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
  .agent-row strong{text-align:left!important}
  .agent-info{padding:12px 14px 16px!important}
 }
+
+/* Robot art visibility: real image element, never covered by opaque CSS gradients. */
+.agent-art,.agent-art[class]{
+ background:radial-gradient(ellipse at 50% 50%,color-mix(in srgb,var(--neon) 15%,#081729),#06101b 90%)!important;
+ background-image:none!important;display:flex;align-items:center;justify-content:center;
+ min-height:260px;
+}
+.agent-art img{display:block!important;max-width:100%;max-height:100%;width:100%;height:100%;
+ object-fit:contain!important;object-position:center center!important;
+ -webkit-mask-image:none!important;mask-image:none!important;filter:none!important}
+.agent-art.art-error::after{content:"Imagem do robô indisponível";position:absolute;inset:0;display:grid;place-items:center;color:#9bb3c9;font-size:12px}
+@media(max-width:800px){
+ .agent-art,.agent-art[class]{height:clamp(245px,75vw,370px)!important;min-height:245px!important}
+ .agent-art img{object-fit:contain!important}
+}
+@media(max-width:390px){.agent-art,.agent-art[class]{height:265px!important}}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Cotações públicas da Binance. Os resultados dos robôs vêm exclusivamente da carteira virtual, sem execução de ordens.</p></section>
@@ -184,7 +200,7 @@ function renderRobots(p){
   const value=available?signed(result):'—';
   const status=!available?'DADOS INDISPONÍVEIS':p?.storageError?'GRAVAÇÃO INDISPONÍVEL':'MONITORANDO';
   const signal=!available?'Aguardando carteira':position?'Posição virtual aberta':'Aguardando sinal';
-  return '<article class="agent-card '+['alpha','nova','orion'][i]+'"><div class="agent-art" style="--portrait:url('+r.art+')"></div>'+
+  return '<article class="agent-card '+['alpha','nova','orion'][i]+'"><div class="agent-art"><img src="'+r.art+'" alt="Ilustração do robô '+r.name+' na mesa de operações" decoding="async" loading="lazy" onerror="this.closest(\'.agent-art\').classList.add(\'art-error\')"></div>'+
    '<div class="agent-info"><div class="agent-top"><span class="agent-tag">AGENTE 0'+(i+1)+'</span><span class="agent-status">● '+status+'</span></div>'+
    '<h3 class="agent-name">'+r.name+'</h3><span class="agent-pair">'+r.pair+'</span>'+
    '<div class="agent-result '+(available?(result>=0?'positive':'negative'):'muted')+'">'+value+'</div>'+
