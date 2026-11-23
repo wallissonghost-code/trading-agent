@@ -50,3 +50,17 @@ test('reads private decision journal in descending order',async()=>{
  }});
  assert.deepEqual(await store.listDecisions({limit:5}),[item]);
 });
+
+test('reads next-candle signal outcomes privately and enforces a safe limit',async()=>{
+ const item={symbol:'BTCUSDT',signal:'watch_long',action:'WAIT',next_candle_return_pct:1.2,directional_correct:true};
+ const store=createSupabaseStore({url:'https://example.supabase.co',key:'private-test-key',fetchFn:async(url,opts)=>{
+  assert.equal(opts.headers.apikey,'private-test-key');
+  assert.equal(opts.method,'GET');
+  assert.equal(url.pathname,'/rest/v1/trading_paper_signal_outcomes');
+  assert.equal(url.searchParams.get('portfolio_id'),'eq.main');
+  assert.equal(url.searchParams.get('order'),'evaluated_at.desc');
+  assert.equal(url.searchParams.get('limit'),'500');
+  return {ok:true,text:async()=>JSON.stringify([item])};
+ }});
+ assert.deepEqual(await store.listSignalOutcomes({limit:1000}),[item]);
+});
