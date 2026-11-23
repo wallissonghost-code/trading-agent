@@ -17,6 +17,16 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
  }
  return {
   kind:'supabase',
+  async listDecisions({limit=30}={}){
+   const query=new URL('/rest/v1/trading_paper_decisions',origin);
+   query.searchParams.set('portfolio_id','eq.'+id);
+   query.searchParams.set('select','decision');
+   query.searchParams.set('order','observed_at.desc');
+   query.searchParams.set('limit',String(Math.max(1,Math.min(100,Number(limit)||30))));
+   const rows=await request('GET',query);
+   if(!Array.isArray(rows))throw new Error('Invalid decision journal response');
+   return rows.map(row=>row.decision);
+  },
   async listTrades({limit=50}={}){
    const query=new URL('/rest/v1/trading_paper_ledger',origin);
    query.searchParams.set('portfolio_id','eq.'+id);
