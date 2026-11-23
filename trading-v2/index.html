@@ -2,73 +2,98 @@
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#080e1a"><title>Trading Agent V2 — Command Center</title>
 <style>
 :root{font-family:Inter,system-ui,-apple-system,sans-serif;color:#e8eefb;background:#070b13}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 0%,#1c304c 0%,#0b1322 38%,#070b13 90%);min-height:100vh}main{max-width:1300px;margin:auto;padding:22px 18px 60px}header,.between,.metrics,.robot-head,.footer{display:flex;align-items:center;justify-content:space-between;gap:14px}header{flex-wrap:wrap;margin-bottom:24px}.brand{display:flex;align-items:center;gap:12px}.logo{width:44px;height:44px;border:1px solid #406a96;border-radius:14px;display:grid;place-items:center;background:#182a42;box-shadow:0 0 24px #2b8fdb33;font-size:24px}h1{font-size:19px;letter-spacing:.3px;margin:0}h2{font-size:18px;margin:0 0 14px}small,.muted{color:#91a1b9}.eyebrow{font-size:11px;letter-spacing:2px;color:#82b7de;text-transform:uppercase}.pill{padding:8px 12px;background:#15253a;border:1px solid #28435e;border-radius:100px;color:#bcd3ea;font-size:12px}button{color:#e6f1ff;background:#1e3b58;border:1px solid #3e607f;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}button:hover{background:#285779}button.active{background:#17644e;border-color:#35c98e}.hero{padding:22px;border:1px solid #2a4565;background:linear-gradient(155deg,#132438ee,#0b1525);border-radius:22px;margin-bottom:18px}.hero h2{font-size:28px;margin:7px 0}.hero p{color:#9cb2ca;font-size:13px;margin:0}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:18px 0;gap:12px}.metric,.panel,.robot{border:1px solid #253950;background:#0e1929de;border-radius:17px}.metric{padding:17px}.metric strong{display:block;font-size:25px;margin-top:9px}.metric span{font-size:11px;color:#91a1b9}.positive{color:#38dfa6!important}.negative{color:#ff7887!important}.room{padding:20px;border:1px solid #2c4765;border-radius:22px;background:linear-gradient(180deg,#18283f,#101b2f 65%,#0a1424);overflow:hidden}.room-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.room-top p{font-size:12px;color:#8da5c1;margin:4px 0}.office{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}.robot{padding:15px;position:relative;background:linear-gradient(160deg,#19283d,#0b1423);box-shadow:0 12px 35px #0005}.robot-head strong{font-size:13px}.gain{font-size:18px;font-weight:800}.station{height:180px;position:relative;margin:12px auto 5px;display:flex;flex-direction:column;align-items:center;justify-content:end}.monitor{z-index:2;width:min(88%,210px);height:102px;border:8px solid #243a52;border-radius:12px;background:linear-gradient(160deg,#0b3d40,#081828 60%);box-shadow:0 0 25px #3decbd22;position:absolute;top:4px;overflow:hidden}.monitor:after{content:'';position:absolute;inset:20px 15px;background:linear-gradient(140deg,transparent 26%,#2bd9a3 27%,#2bd9a3 29%,transparent 30%,transparent 41%,#2bd9a3 42%,#2bd9a3 44%,transparent 45%,transparent 58%,#2bd9a3 59%,#2bd9a3 61%,transparent 62%);opacity:.65;transform:skewY(-9deg)}.monitor.red{background:linear-gradient(160deg,#49262f,#081828)}.monitor.red:after{filter:hue-rotate(140deg)}.stand{position:absolute;top:103px;width:14px;height:30px;background:#304c66}.bot{position:absolute;z-index:3;bottom:0;display:flex;align-items:center;flex-direction:column}.bot-face{width:62px;height:52px;background:#d4e5f5;border:5px solid #587995;border-radius:18px;position:relative;box-shadow:0 0 18px #91d4ff44}.bot-face:before{content:'•  •';position:absolute;inset:4px 0;color:#22b9dd;text-align:center;font-weight:900;font-size:27px}.bot-body{width:76px;height:41px;background:linear-gradient(100deg,#395a7b,#83aec8);border-radius:25px 25px 11px 11px}.desk{height:13px;background:linear-gradient(90deg,#435c75,#698ca7,#435c75);border-radius:6px;width:100%;position:absolute;bottom:8px;z-index:4}.robot-detail{font-size:12px;color:#9bb1cb;margin-top:8px;display:flex;justify-content:space-between}.bottom{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;margin-top:18px}.panel{padding:19px}.log{display:flex;flex-direction:column;gap:12px}.log div{display:flex;justify-content:space-between;border-bottom:1px solid #24374d;padding-bottom:12px;font-size:12px}.log div:last-child{border:0}.disclaimer{margin:20px 0 0;color:#91a1b9;font-size:12px;line-height:1.6}@media(max-width:800px){.metrics{grid-template-columns:repeat(2,1fr)}.office{grid-template-columns:1fr 1fr}.bottom{grid-template-columns:1fr}.robot:nth-child(3){grid-column:span 2}.hero h2{font-size:23px}}@media(max-width:480px){main{padding:14px 12px 40px}.office{grid-template-columns:1fr}.robot:nth-child(3){grid-column:auto}.metric strong{font-size:21px}.room{padding:12px}.robot{padding:12px}.station{height:155px}.brand h1{font-size:16px}}
+.robot{border-color:#32516b;transition:transform .18s,border-color .18s}.robot:hover{transform:translateY(-3px);border-color:#5597bb}.monitor{border-color:#365776}.room{background:radial-gradient(ellipse at 50% -12%,#294d6a 0%,#14283c 55%,#0b1525 100%)}.room:before{content:"";display:block;height:3px;margin:-20px -20px 18px;background:linear-gradient(90deg,transparent,#40d1ad,transparent)}.bot-face{animation:glow 3s infinite alternate}@keyframes glow{from{box-shadow:0 0 12px #91d4ff2a}to{box-shadow:0 0 28px #91d4ff80}}.robot-detail{gap:8px}.robot-detail span:last-child{text-align:right}.room .pill{white-space:nowrap}@media(max-width:480px){.room:before{margin:-12px -12px 14px}.metrics{gap:8px}.metric{padding:12px}.hero{padding:16px}}
 </style></head><body><main>
-<header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● TESTNET • SIMULAÇÃO</span><button id="toggle" type="button" aria-pressed="false">Iniciar demonstração</button></div></header>
-<section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Interface demonstrativa. As cotações e os resultados abaixo são fictícios e não são ordens executadas.</p></section>
-<section class="metrics" aria-label="Indicadores simulados"><div class="metric"><span>CAPITAL SIMULADO</span><strong id="capital">$ 10.000,00</strong></div><div class="metric"><span>RESULTADO DO DIA</span><strong id="pnl" class="positive">+$ 0,00</strong></div><div class="metric"><span>ROBÔS EM MONITORAMENTO</span><strong>03</strong></div><div class="metric"><span>OPERAÇÕES REAIS</span><strong>0</strong></div></section>
-<section class="room"><div class="room-top"><div><div class="eyebrow">Operations Floor / Virtual Office</div><h2 style="margin:6px 0">Mesa dos robôs</h2><p>Lucros e perdas individuais em valores simulados</p></div><span class="pill" id="mode">PARADO</span></div><div class="office" id="office"></div></section>
-<section class="panel" style="margin-top:18px"><div class="between" style="margin-bottom:12px"><div><div class="eyebrow">Binance Spot / 5 minutos</div><h2 style="margin:6px 0">Leitura do mercado real</h2></div><button id="refreshMarket" type="button">Atualizar cotações</button></div><p class="muted" style="font-size:12px">Apenas dados públicos e candles fechados. Nenhuma compra, venda ou operação foi executada.</p><div class="metrics" id="liveMarket" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="metric">BTC/USDT<br><small>Carregando...</small></div><div class="metric">ETH/USDT<br><small>Carregando...</small></div><div class="metric">SOL/USDT<br><small>Carregando...</small></div></div><div id="marketUpdated" class="muted" style="font-size:12px"></div></section><section class="panel" style="margin-top:18px"><div class="between"><div><div class="eyebrow">PAPER TRADING / USDT FICTÍCIO</div><h2 style="margin:6px 0">Carteira dos agentes</h2></div><span class="pill">SEM ORDENS REAIS</span></div><p class="muted" style="font-size:12px">Simulação automática sobre candles públicos de 5 minutos. Preenchimentos fictícios: não equivalem a preços executáveis na corretora. Histórico guardado apenas em arquivo temporário no Render gratuito, sujeito a perda em reinicializações.</p><div class="metrics" id="paperMetrics" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="metric"><span>PATRIMÔNIO VIRTUAL</span><strong>Carregando</strong></div></div><div id="paperHoldings" class="log"></div><div id="paperNote" class="muted" style="font-size:12px;margin-top:10px"></div></section><section class="bottom"><div class="panel"><h2>Atividade dos agentes</h2><div class="log" id="activity"><div><span>Motor demonstrativo pronto</span><span class="muted">Aguardando início</span></div></div></div><div class="panel"><h2>Controle de risco (planejado)</h2><div class="log"><div><span>Mercado</span><strong>Binance Spot Testnet</strong></div><div><span>Risco máximo por operação</span><strong>1% (objetivo)</strong></div><div><span>Execução real</span><strong class="muted">Desativada</strong></div><div><span>Conexão com a corretora</span><strong class="muted">Não configurada</strong></div></div></div></section>
-<p class="disclaimer">Este protótipo visual não se conecta à Binance e não envia ordens. Não exibe dados reais, nem garante qualquer retorno financeiro. O backend de trading será implementado e testado em etapa separada.</p>
+<header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
+<section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Cotações públicas da Binance. Os resultados dos robôs vêm exclusivamente da carteira virtual, sem execução de ordens.</p></section>
+<section class="metrics" aria-label="Indicadores simulados"><div class="metric"><span>CAPITAL SIMULADO</span><strong id="capital">$ 10.000,00</strong></div><div class="metric"><span>RESULTADO TOTAL SIMULADO</span><strong id="pnl" class="positive">+$ 0,00</strong></div><div class="metric"><span>ROBÔS EM MONITORAMENTO</span><strong>03</strong></div><div class="metric"><span>ORDENS REAIS</span><strong>0</strong></div></section>
+<section class="room"><div class="room-top"><div><div class="eyebrow">Operations Floor / Virtual Office</div><h2 style="margin:6px 0">Mesa dos robôs</h2><p>P&L individual calculado pelas operações da carteira virtual</p></div><span class="pill" id="mode">PARADO</span></div><div class="office" id="office"></div></section>
+<section class="panel" style="margin-top:18px"><div class="between" style="margin-bottom:12px"><div><div class="eyebrow">Binance Spot / 5 minutos</div><h2 style="margin:6px 0">Leitura do mercado real</h2></div><button id="refreshMarket" type="button">Atualizar cotações</button></div><p class="muted" style="font-size:12px">Apenas dados públicos e candles fechados. Nenhuma compra, venda ou operação foi executada.</p><div class="metrics" id="liveMarket" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="metric">BTC/USDT<br><small>Carregando...</small></div><div class="metric">ETH/USDT<br><small>Carregando...</small></div><div class="metric">SOL/USDT<br><small>Carregando...</small></div></div><div id="marketUpdated" class="muted" style="font-size:12px"></div></section><section class="panel" style="margin-top:18px"><div class="between"><div><div class="eyebrow">PAPER TRADING / USDT FICTÍCIO</div><h2 style="margin:6px 0">Carteira dos agentes</h2></div><span class="pill">SEM ORDENS REAIS</span></div><p class="muted" style="font-size:12px">Simulação automática sobre candles públicos de 5 minutos. Preenchimentos fictícios: não equivalem a preços executáveis na corretora. A persistência é indicada abaixo; armazenamento local no Render gratuito é temporário.</p><div class="metrics" id="paperMetrics" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="metric"><span>PATRIMÔNIO VIRTUAL</span><strong>Carregando</strong></div></div><div id="paperHoldings" class="log"></div><div id="paperNote" class="muted" style="font-size:12px;margin-top:10px"></div></section><section class="bottom"><div class="panel"><h2>Atividade dos agentes</h2><div class="log" id="activity"><div><span>Motor demonstrativo pronto</span><span class="muted">Aguardando início</span></div></div></div><div class="panel"><h2>Parâmetros de simulação</h2><div class="log"><div><span>Mercado</span><strong>Binance Spot pública (somente leitura)</strong></div><div><span>Risco máximo por operação</span><strong>1% (dimensionamento aproximado)</strong></div><div><span>Execução real</span><strong class="muted">Desativada</strong></div><div><span>Conexão com a corretora</span><strong class="muted">Não configurada</strong></div></div></div></section>
+<p class="disclaimer">O painel lê dados públicos da Binance e simula operações na carteira interna. Não conecta uma conta de corretora, não executa ordens reais e não garante retorno financeiro.</p>
 </main><script>
-const robots=[{name:'ALPHA',pair:'BTC/USDT',pnl:0},{name:'NOVA',pair:'ETH/USDT',pnl:0},{name:'ORION',pair:'SOL/USDT',pnl:0}];
-const money=v=>(v<0?'-':'+' )+'$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-let running=false,timer=null,steps=0;
-const office=document.getElementById('office');
-function render(){office.innerHTML=robots.map((r,i)=>'<article class="robot"><div class="robot-head"><div><div class="eyebrow">AGENTE 0'+(i+1)+'</div><strong>'+r.name+'</strong></div><strong class="gain '+(r.pnl>=0?'positive':'negative')+'">'+money(r.pnl)+'</strong></div><div class="station"><div class="monitor '+(r.pnl<0?'red':'')+'"></div><div class="stand"></div><div class="bot"><div class="bot-face"></div><div class="bot-body"></div></div><div class="desk"></div></div><div class="robot-detail"><span>'+r.pair+'</span><span>'+(running?'Analisando (simulado)':'Em espera')+'</span></div></article>').join('');
-const total=robots.reduce((a,r)=>a+r.pnl,0);document.getElementById('pnl').textContent=money(total);document.getElementById('pnl').className=total>=0?'positive':'negative';document.getElementById('capital').textContent='$ '+(10000+total).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function tick(){steps++;const selected=robots[steps%3];selected.pnl=Math.round((selected.pnl+(Math.random()-.48)*18)*100)/100;render();const div=document.createElement('div');const clock=new Date().toLocaleTimeString('pt-BR');div.innerHTML='<span>'+selected.name+' • variação fictícia de resultado</span><span class="'+(selected.pnl>=0?'positive':'negative')+'">'+money(selected.pnl)+' · '+clock+'</span>';const log=document.getElementById('activity');log.prepend(div);while(log.children.length>6)log.lastElementChild.remove();}
-document.getElementById('toggle').addEventListener('click',e=>{running=!running;e.currentTarget.textContent=running?'Pausar demonstração':'Iniciar demonstração';e.currentTarget.classList.toggle('active',running);e.currentTarget.setAttribute('aria-pressed',String(running));document.getElementById('mode').textContent=running?'SIMULAÇÃO ATIVA':'PARADO';clearInterval(timer);if(running){sync();timer=setInterval(sync,3000)}render();});render();
-async function sync(){try{
-const response=await fetch('/api/status',{cache:'no-store'});
-if(!response.ok)throw new Error('HTTP '+response.status);
-const state=await response.json();
-if(state.mode!=='SIMULATION_ONLY'||state.dataSource!=='synthetic')throw new Error('Unexpected data source');
-for(let i=0;i<robots.length;i++)robots[i].pnl=Number(state.agents[i]?.simulatedPnl||0);
-render();
-document.getElementById('mode').textContent='SIMULAÇÃO ONLINE';
-document.getElementById('capital').textContent='$ '+Number(state.capital).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-const log=document.getElementById('activity');
-log.innerHTML=(state.history||[]).slice(0,6).map(x=>'<div><span>'+x.agent+' • '+x.symbol+' (fictício)</span><span class="'+(x.simulatedPnl>=0?'positive':'negative')+'">'+money(x.simulatedPnl)+'</span></div>').join('');
-}catch(error){document.getElementById('mode').textContent='API INDISPONÍVEL';console.warn('Simulation API unavailable',error)}}
-</script><script>
-async function refreshRealMarket(){
-const grid=document.getElementById('liveMarket'),stamp=document.getElementById('marketUpdated'),button=document.getElementById('refreshMarket');
-button.disabled=true;stamp.textContent='Consultando dados públicos da Binance...';
-try{
-const response=await fetch('/api/analysis-live',{cache:'no-store'});
-if(!response.ok)throw new Error('Servidor HTTP '+response.status);
-const data=await response.json();
-const labels={BTCUSDT:'BTC/USDT',ETHUSDT:'ETH/USDT',SOLUSDT:'SOL/USDT'};
-const showNum=x=>Number(x).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-grid.innerHTML=data.results.map(r=>{
-if(!r.ok)return '<div class="metric"><strong style="font-size:16px">'+labels[r.symbol]+'</strong><span class="negative">Cotação indisponível</span></div>';
-const a=r.analysis||{};
-const signal={watch_long:'Vigiar tendência de alta',watch_short:'Vigiar tendência de baixa',wait:'Aguardar'}[a.classification]||'Sem análise';
-return '<div class="metric"><span>'+labels[r.symbol]+'</span><strong>$ '+showNum(r.price)+'</strong><div class="robot-detail"><span>RSI '+(Number.isFinite(a.rsi14)?a.rsi14.toFixed(1):'—')+'</span><span>EMA 9/21</span></div><p class="muted" style="font-size:11px">'+signal+' • informativo</p></div>';
-}).join('');
-stamp.textContent='Fonte: Binance Spot pública • Candle 5m fechado • Consulta '+new Date(data.retrievedAt).toLocaleString('pt-BR')+(data.ok?'':' • Alguns pares indisponíveis');
-}catch(e){stamp.textContent='Não foi possível consultar a Binance: '+e.message;grid.innerHTML='<div class="metric">Dados reais indisponíveis. O simulador permanece independente.</div>';}
-finally{button.disabled=false;}
+const robots=[
+ {name:'ALPHA',symbol:'BTCUSDT',pair:'BTC/USDT'},
+ {name:'NOVA',symbol:'ETHUSDT',pair:'ETH/USDT'},
+ {name:'ORION',symbol:'SOLUSDT',pair:'SOL/USDT'}
+];
+const $=id=>document.getElementById(id);
+const usd=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'USD'});
+const signed=n=>(n>=0?'+':'−')+usd(Math.abs(n));
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let previousPaper=null,busy=false;
+function renderRobots(p){
+ const available=Boolean(p?.ready);
+ const positions=available?p.positions||[]:[];
+ const trades=available?p.trades||[]:[];
+ $('office').innerHTML=robots.map((r,i)=>{
+  const position=positions.find(x=>x.symbol===r.symbol);
+  const realized=trades.filter(x=>x.symbol===r.symbol&&x.side==='SELL').reduce((sum,x)=>sum+(Number(x.realizedPnl)||0),0);
+  const unrealized=Number(position?.unrealizedPnl||0);
+  const result=realized+unrealized;
+  const signal=!available?'Dados indisponíveis':position?'Posição virtual aberta':'Aguardando sinal';
+  const value=available?signed(result):'—';
+  return '<article class="robot"><div class="robot-head"><div><div class="eyebrow">AGENTE 0'+(i+1)+'</div><strong>'+r.name+'</strong></div><strong class="gain '+(available?(result>=0?'positive':'negative'):'muted')+'">'+value+'</strong></div><div class="station"><div class="monitor '+(available&&result<0?'red':'')+'"></div><div class="stand"></div><div class="bot"><div class="bot-face"></div><div class="bot-body"></div></div><div class="desk"></div></div><div class="robot-detail"><span>'+r.pair+'</span><span>'+signal+'</span></div><div class="robot-detail"><span>Realizado: '+(available?usd(realized):'—')+'</span><span>Em aberto: '+(available?usd(unrealized):'—')+'</span></div></article>';
+ }).join('');
 }
-document.getElementById('refreshMarket').addEventListener('click',refreshRealMarket);
-refreshRealMarket();
-</script><script>
+function renderPaper(p){
+ previousPaper=p;
+ renderRobots(p);
+ if(!p?.ready){
+  $('mode').textContent='CARTEIRA INDISPONÍVEL';
+  $('paperNote').textContent='Não foi possível carregar a carteira simulada: '+String(p?.storageError||p?.error||'Aguardando inicialização');
+  $('pnl').textContent='—';$('capital').textContent='—';
+  return;
+ }
+ $('mode').textContent=p.storageError?'GRAVAÇÃO INDISPONÍVEL':'PAPER ONLINE';
+ const total=Number(p.equity)-Number(p.startingCash||10000);
+ $('capital').textContent=usd(p.equity);
+ $('pnl').textContent=signed(total);
+ $('pnl').className=total>=0?'positive':'negative';
+ $('paperMetrics').innerHTML='<div class="metric"><span>PATRIMÔNIO VIRTUAL</span><strong>'+usd(p.equity)+'</strong></div>'+
+ '<div class="metric"><span>SALDO DISPONÍVEL</span><strong>'+usd(p.cash)+'</strong></div>'+
+ '<div class="metric"><span>RESULTADO REALIZADO SIMULADO</span><strong class="'+(p.realizedPnl>=0?'positive':'negative')+'">'+usd(p.realizedPnl)+'</strong></div>';
+ const holdings=p.positions||[], trades=p.trades||[];
+ $('paperHoldings').innerHTML='<strong style="font-size:13px">Posições virtuais abertas: '+holdings.length+'</strong>'+
+ (holdings.length?holdings.map(x=>'<div><span>'+esc(x.symbol)+' • entrada '+usd(x.entry)+' • stop '+usd(x.stop)+'</span><strong class="'+(x.unrealizedPnl>=0?'positive':'negative')+'">'+usd(x.unrealizedPnl)+'</strong></div>').join(''):'<div><span>Nenhuma posição aberta.</span></div>')+
+ '<strong style="font-size:13px;margin-top:8px">Últimos movimentos simulados</strong>'+
+ (trades.length?trades.slice(0,6).map(x=>'<div><span>'+esc(x.side)+' • '+esc(x.symbol)+' • '+esc(x.reason)+'</span><span>'+usd(x.price)+'</span></div>').join(''):'<div><span>Nenhuma operação registrada.</span></div>');
+ const errors=Object.entries(p.lastError||{});
+ const storage=p.persistence==='supabase'?'Banco Supabase': 'Arquivo temporário (pode reiniciar)';
+ $('paperNote').textContent='Origem: Binance Spot pública • Armazenamento: '+storage+' • Último ciclo: '+(p.updatedAt?new Date(p.updatedAt).toLocaleString('pt-BR'):'pendente')+(errors.length?' • Falhas: '+errors.map(x=>x[0]+': '+x[1]).join('; '):'')+(p.storageError?' • ERRO DE GRAVAÇÃO: '+p.storageError:'');
+ $('activity').innerHTML=trades.length?trades.slice(0,6).map(x=>'<div><span>'+esc(x.symbol)+' • '+(x.side==='BUY'?'Compra virtual':'Venda virtual')+'</span><span class="'+(Number(x.realizedPnl||0)>=0?'positive':'negative')+'">'+(x.realizedPnl===null?'Entrada '+usd(x.price):signed(Number(x.realizedPnl||0)))+'</span></div>').join(''):'<div><span>Nenhuma operação simulada ainda</span><span class="muted">Aguardando sinal</span></div>';
+}
 async function refreshPaper(){
-const area=document.getElementById('paperMetrics'),holdings=document.getElementById('paperHoldings'),note=document.getElementById('paperNote');
-try{
-const res=await fetch('/api/paper',{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);
-const p=await res.json();
-if(!p.ready)throw new Error(p.error||'Simulador inicializando');
-const moneyFmt=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'USD'});
-area.innerHTML='<div class="metric"><span>PATRIMÔNIO VIRTUAL</span><strong>'+moneyFmt(p.equity)+'</strong></div>'+
-'<div class="metric"><span>SALDO DISPONÍVEL</span><strong>'+moneyFmt(p.cash)+'</strong></div>'+
-'<div class="metric"><span>RESULTADO REALIZADO FICTÍCIO</span><strong class="'+(p.realizedPnl>=0?'positive':'negative')+'">'+moneyFmt(p.realizedPnl)+'</strong></div>';
-holdings.innerHTML='<strong style="font-size:13px">Posições abertas: '+p.positions.length+'</strong>'+
-(p.positions.length?p.positions.map(x=>'<div><span>'+x.symbol+' • entrada '+moneyFmt(x.entry)+' • stop '+moneyFmt(x.stop)+'</span><strong class="'+(x.unrealizedPnl>=0?'positive':'negative')+'">'+moneyFmt(x.unrealizedPnl)+'</strong></div>').join(''):'<div><span>Nenhuma posição virtual aberta.</span></div>')+
-'<strong style="font-size:13px;margin-top:8px">Últimos movimentos simulados</strong>'+
-(p.trades.length?p.trades.slice(0,6).map(x=>'<div><span>'+x.side+' • '+x.symbol+' • '+x.reason+'</span><span>'+moneyFmt(x.price)+'</span></div>').join(''):'<div><span>Nenhuma operação simulada registrada.</span></div>');
-const errors=Object.entries(p.lastError||{});note.textContent='Somente simulação • Arquivo local temporário • Último ciclo: '+(p.updatedAt?new Date(p.updatedAt).toLocaleString('pt-BR'):'não realizado')+(errors.length?' • Falhas: '+errors.map(x=>x[0]+': '+x[1]).join('; '):'');
-}catch(e){note.textContent='Carteira virtual indisponível: '+e.message;}
+ try{
+  const response=await fetch('/api/paper',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  renderPaper(await response.json());
+ }catch(e){renderPaper({ready:false,error:e.message});}
 }
-refreshPaper();setInterval(refreshPaper,15000);
+async function refreshRealMarket(){
+ const grid=$('liveMarket'),stamp=$('marketUpdated'),button=$('refreshMarket');
+ button.disabled=true;stamp.textContent='Consultando dados públicos da Binance...';
+ try{
+  const response=await fetch('/api/analysis-live',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const data=await response.json();
+  const labels={BTCUSDT:'BTC/USDT',ETHUSDT:'ETH/USDT',SOLUSDT:'SOL/USDT'};
+  grid.innerHTML=(data.results||[]).map(r=>{
+   const name=labels[r.symbol]||esc(r.symbol);
+   if(!r.ok)return '<div class="metric"><strong style="font-size:16px">'+name+'</strong><span class="negative">Cotação indisponível</span></div>';
+   const a=r.analysis||{};
+   const signal={watch_long:'Monitorar alta',watch_short:'Monitorar baixa',wait:'Aguardar'}[a.classification]||'Sem análise';
+   return '<div class="metric"><span>'+name+'</span><strong>'+usd(r.price)+'</strong><div class="robot-detail"><span>RSI '+(Number.isFinite(a.rsi14)?a.rsi14.toFixed(1):'—')+'</span><span>EMA 9/21</span></div><p class="muted" style="font-size:11px">'+signal+' • informativo</p></div>';
+  }).join('');
+  stamp.textContent='Binance Spot pública • último candle 5m fechado • consulta '+new Date(data.retrievedAt).toLocaleString('pt-BR');
+ }catch(e){stamp.textContent='Mercado indisponível: '+e.message;grid.innerHTML='<div class="metric">Sem dados atuais.</div>';}
+ finally{button.disabled=false;}
+}
+async function sync(){
+ if(busy)return;busy=true;
+ try{await Promise.all([refreshPaper(),refreshRealMarket()]);}
+ finally{busy=false;}
+}
+$('toggle').addEventListener('click',sync);
+$('refreshMarket').addEventListener('click',refreshRealMarket);
+renderRobots(null);sync();setInterval(refreshPaper,15000);setInterval(refreshRealMarket,60000);
 </script></body></html>
