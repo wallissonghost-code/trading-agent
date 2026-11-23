@@ -59,3 +59,21 @@ test('halts on persistence failure and does not commit an unsaved candle',async(
  assert.deepEqual(state.lastCandle,{});
  await assert.rejects(()=>runner.runOnce(),/halted/);
 });
+
+test('rejects stale or future candles before changing paper portfolio',()=>{
+ const a=createAccount(),cs=candles();
+ const before=structuredClone(a);
+ assert.throws(()=>processCandle(a,'BTCUSDT',cs,{now:new Date(Date.now()+25*60*1000).toISOString()}),/Stale/);
+ assert.deepEqual(a,before);
+ assert.throws(()=>processCandle(a,'BTCUSDT',cs,{now:new Date(Date.now()-10*60*1000).toISOString()}),/future/);
+ assert.deepEqual(a,before);
+});
+test('equity and per-agent unrealized return use mark prices, not entry prices',()=>{
+ const a=createAccount();a.cash=8999;
+ a.positions.BTCUSDT={symbol:'BTCUSDT',entry:100,quantity:10,cost:1001,stop:95,take:110};
+ a.lastMarks.BTCUSDT=90;
+ const state=snapshot(a);
+ assert.equal(state.equity,9899);
+ assert.equal(state.agentPnl.BTCUSDT.unrealizedPnl,-101.9);
+ assert.equal(state.agentPnl.ETHUSDT.unrealizedPnl,0);
+});
