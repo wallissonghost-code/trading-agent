@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { analyze, generateMockCandles } from './engine.js';
+import { SYMBOLS, getKlines } from './market.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -37,6 +38,17 @@ else if(path==='/api/status')data=payload();
 else if(path==='/api/agents')data={ok:true,simulated:true,agents};
 else if(path==='/api/market')data={ok:true,dataSource:'synthetic',prices};
 else if(path==='/api/analysis')data={ok:true,mode:'SIMULATION_ONLY',dataSource:'synthetic',reports:agents.map(a=>({agent:a.name,symbol:a.symbol,...analyze(generateMockCandles(prices[a.symbol]),10000)}))};
+else if(path==='/api/market-live'||path==='/api/analysis-live'){
+  const results=await Promise.all(SYMBOLS.map(async(symbol)=>{
+    try{
+      const result=await getKlines(symbol);
+      const latest=result.candles.at(-1);
+      const item={ok:true,symbol,price:latest.close,lastClosedAt:result.lastClosedAt,dataSource:result.dataSource,cached:result.cached,interval:result.interval};
+      return path==='/api/analysis-live'?{...item,analysis:analyze(result.candles,10000)}:item;
+    }catch(e){return {ok:false,symbol,error:String(e.message||e).slice(0,120)};}
+  }));
+  data={ok:results.every(r=>r.ok),mode:'READ_ONLY',orderExecutionEnabled:false,dataSource:'binance_public_spot',retrievedAt:new Date().toISOString(),results};
+}
 else{res.writeHead(404);return res.end('Not found');}
 res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
 res.end(req.method==='HEAD'?undefined:JSON.stringify(data));
