@@ -7,11 +7,12 @@ const round=(x,n=8)=>Number(x.toFixed(n));
 const fee=0.001;
 const maxPositions=2;
 const maxExposure=0.5;
-export const createAccount=()=>({schema:1,startingCash:10000,cash:10000,realizedPnl:0,positions:{},trades:[],lastCandle:{},lastError:{},updatedAt:null});
+export const createAccount=()=>({schema:1,startingCash:10000,cash:10000,realizedPnl:0,realizedBySymbol:{},positions:{},trades:[],lastCandle:{},lastError:{},updatedAt:null});
 export function snapshot(account, quotes={}){
   const positions=Object.values(account.positions).map(p=>({...p,markPrice:quotes[p.symbol]||p.entry,unrealizedPnl:round(((quotes[p.symbol]||p.entry)-p.entry)*p.quantity - p.entry*p.quantity*fee - (quotes[p.symbol]||p.entry)*p.quantity*fee,2)}));
   const equity=account.cash+positions.reduce((sum,p)=>sum+p.quantity*p.markPrice,0);
-  return {mode:'PAPER_ONLY',currency:'USDT',cash:round(account.cash,2),equity:round(equity,2),realizedPnl:round(account.realizedPnl,2),unrealizedPnl:round(positions.reduce((x,p)=>x+p.unrealizedPnl,0),2),positions,trades:account.trades.slice(0,30),lastCandle:account.lastCandle,lastError:account.lastError,updatedAt:account.updatedAt,dataSource:'binance_public_spot',executionEnabled:false,persistence:'local_ephemeral'};
+  const agentPnl=Object.fromEntries(SYMBOLS.map(symbol=>[symbol,{realizedPnl:round(account.realizedBySymbol?.[symbol]??account.trades.filter(t=>t.symbol===symbol&&t.side==='SELL').reduce((sum,t)=>sum+(t.realizedPnl||0),0),2),unrealizedPnl:round(positions.find(p=>p.symbol===symbol)?.unrealizedPnl||0,2)}]));
+  return {mode:'PAPER_ONLY',currency:'USDT',startingCash:account.startingCash,agentPnl,cash:round(account.cash,2),equity:round(equity,2),realizedPnl:round(account.realizedPnl,2),unrealizedPnl:round(positions.reduce((x,p)=>x+p.unrealizedPnl,0),2),positions,trades:account.trades.slice(0,30),lastCandle:account.lastCandle,lastError:account.lastError,updatedAt:account.updatedAt,dataSource:'binance_public_spot',executionEnabled:false,persistence:'local_ephemeral'};
 }
 export function processCandle(account,symbol,candles,{now=new Date().toISOString()}={}){
   if(!SYMBOLS.includes(symbol))throw new Error('Unsupported pair');
@@ -34,6 +35,8 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
       account.cash=round(account.cash+proceeds-sellFee,8);
       const pnl=proceeds-sellFee-position.cost;
       account.realizedPnl=round(account.realizedPnl+pnl,8);
+      account.realizedBySymbol??=Object.fromEntries(SYMBOLS.map(s=>[s,account.trades.filter(t=>t.symbol===s&&t.side==='SELL').reduce((sum,t)=>sum+(t.realizedPnl||0),0)]));
+      account.realizedBySymbol[symbol]=round((account.realizedBySymbol[symbol]||0)+pnl,8);
       account.trades.unshift({symbol,side:'SELL',reason:stopped?'STOP_LOSS':'TAKE_PROFIT',price:fill,quantity:position.quantity,fee:round(sellFee,8),realizedPnl:round(pnl,2),time:now,candleCloseTime:c.closeTime,simulated:true});
       delete account.positions[symbol];
     }
