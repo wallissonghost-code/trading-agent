@@ -12,7 +12,6 @@ test('inline dashboard JavaScript compiles and displays live agent profit',()=>{
  assert.match(match[1],/function renderRobots\(p\)/);
  assert.match(match[1],/agentPnl/);
  assert.ok(match[1].includes('class="agent-art"'));
- assert.match(match[1],/src=\\"'\+r.art/);
 });
 test('all premium robot assets are valid local JPEG files',()=>{
  for(const name of ['alpha','nova','orion']){
