@@ -26,3 +26,15 @@ test('market cards and portfolio prevent mobile overlap',()=>{
  assert.match(html,/#liveMarket,#paperMetrics\{grid-template-columns:minmax\(0,1fr\)!important\}/);
  assert.match(html,/\.metric\{min-width:0;overflow:hidden\}/);
 });
+
+test('mobile displays full robot portraits above the live trade details',()=>{
+ for(const name of ['alpha','nova','orion']){
+  const file=readFileSync(new URL('./assets/'+name+'-portrait.jpg',import.meta.url));
+  assert.ok(file.length>10000);
+  assert.equal(file[0],0xff);
+  assert.equal(file[1],0xd8);
+  assert.ok(html.includes('/assets/'+name+'-portrait.jpg'));
+ }
+ assert.match(html,/\.agent-card\{grid-template-columns:minmax\(0,1fr\)!important\}/);
+ assert.match(html,/\.agent-art\{height:clamp\(230px,72vw,350px\)!important/);
+});
