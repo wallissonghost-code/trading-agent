@@ -11,7 +11,8 @@ test('inline dashboard JavaScript compiles and displays live agent profit',()=>{
  assert.doesNotThrow(()=>new Script(match[1]));
  assert.match(match[1],/function renderRobots\(p\)/);
  assert.match(match[1],/agentPnl/);
- assert.match(match[1],/--portrait:url/);
+ assert.match(match[1],/class=\\"agent-art\\"/);
+ assert.match(match[1],/src=\\"'\+r.art/);
 });
 test('all premium robot assets are valid local JPEG files',()=>{
  for(const name of ['alpha','nova','orion']){
@@ -36,5 +37,6 @@ test('mobile displays full robot portraits above the live trade details',()=>{
   assert.ok(html.includes('/assets/'+name+'-portrait.jpg'));
  }
  assert.match(html,/\.agent-card\{grid-template-columns:minmax\(0,1fr\)!important\}/);
- assert.match(html,/\.agent-art\{height:clamp\(230px,72vw,350px\)!important/);
+ assert.match(html,/\.agent-art img\{display:block!important/);
+ assert.match(html,/object-fit:contain!important/);
 });
