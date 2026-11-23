@@ -1,7 +1,6 @@
 // Research-only backtester. This module never sends orders and never changes the paper engine.
 // Split is chronological: candidates are evaluated separately on 70% training and 30% held-out candles.
 // Entry occurs at the *next* candle open, after indicators were known at previous candle close.
-import {ema,rsi,atr} from './engine.js';
 
 export const LAB_CANDIDATES=Object.freeze([
  {id:'baseline',label:'EMA 9/21 + RSI 50–70',fast:9,slow:21,rsiMin:50,rsiMax:70,atrMultiplier:2},
@@ -11,18 +10,36 @@ export const LAB_CANDIDATES=Object.freeze([
 const FEE_RATE=.001, SLIPPAGE_RATE=.0005, STARTING_CASH=10000;
 const fix=n=>Math.round((n+Number.EPSILON)*100)/100;
 
-function eligible(candles,index,cfg){
- const history=candles.slice(0,index);
- if(history.length<40)return null;
- const closes=history.map(c=>c.close);
- const quick=ema(closes,cfg.fast),slow=ema(closes,cfg.slow);
- const strength=rsi(closes),vol=atr(history);
- if(![quick,slow,strength,vol].every(Number.isFinite))return null;
- if(quick<=slow||strength<cfg.rsiMin||strength>cfg.rsiMax)return null;
- const last=history.at(-1).close;
- return {last,stopDistance:Math.max(vol*cfg.atrMultiplier,last*.002)};
+// Single forward pass with the same EMA/RSI/ATR smoothing rules as engine.js.
+// Signals at index i depend ONLY on information through index i-1.
+function buildSignals(candles,cfg){
+ const signals=Array(candles.length).fill(null);
+ let quick=0,slow=0,quickSum=0,slowSum=0,rsiGain=0,rsiLoss=0,atrValue=0,atrSum=0;
+ for(let i=0;i<candles.length;i++){
+  const bar=candles[i],price=bar.close;
+  if(i<cfg.fast)quickSum+=price;
+  if(i===cfg.fast-1)quick=quickSum/cfg.fast;
+  else if(i>=cfg.fast)quick+=(price-quick)*2/(cfg.fast+1);
+  if(i<cfg.slow)slowSum+=price;
+  if(i===cfg.slow-1)slow=slowSum/cfg.slow;
+  else if(i>=cfg.slow)slow+=(price-slow)*2/(cfg.slow+1);
+  if(i>0){
+   const delta=price-candles[i-1].close;
+   const gain=Math.max(0,delta),loss=Math.max(0,-delta);
+   if(i<=14){rsiGain+=gain;rsiLoss+=loss;if(i===14){rsiGain/=14;rsiLoss/=14;}}
+   else{rsiGain=(rsiGain*13+gain)/14;rsiLoss=(rsiLoss*13+loss)/14;}
+   const trueRange=Math.max(bar.high-bar.low,Math.abs(bar.high-candles[i-1].close),Math.abs(bar.low-candles[i-1].close));
+   if(i<=14){atrSum+=trueRange;if(i===14)atrValue=atrSum/14;}
+   else atrValue=(atrValue*13+trueRange)/14;
+  }
+  if(i<39||i+1>=candles.length)continue;
+  const rsiStrength=rsiLoss===0?(rsiGain===0?50:100):100-100/(1+rsiGain/rsiLoss);
+  if(quick>slow&&rsiStrength>=cfg.rsiMin&&rsiStrength<=cfg.rsiMax&&Number.isFinite(atrValue))
+   signals[i+1]={last:price,stopDistance:Math.max(atrValue*cfg.atrMultiplier,price*.002)};
+ }
+ return signals;
 }
-function runSegment(candles,from,to,cfg){
+function runSegment(candles,from,to,cfg,signals){
  let cash=STARTING_CASH,position=null,peak=STARTING_CASH,maxDrawdown=0;
  let wins=0,losses=0,profit=0,loss=0,closed=0,entries=0;
  const equityAt=price=>cash+(position?position.qty*price:0);
@@ -45,7 +62,7 @@ function runSegment(candles,from,to,cfg){
       exit(base*(1-SLIPPAGE_RATE));
     }
   } else {
-    const signal=eligible(candles,i,cfg);
+    const signal=signals[i];
     if(signal){
       const entry=bar.open*(1+SLIPPAGE_RATE);
       const stop=signal.last-signal.stopDistance;
@@ -92,8 +109,9 @@ export function runStrategyLab(candles,{symbol='BTCUSDT'}={}){
  }
  const split=Math.floor(candles.length*.7);
  const candidates=LAB_CANDIDATES.map(candidate=>{
-  const train=runSegment(candles,40,split,candidate);
-  const test=runSegment(candles,split,candles.length,candidate);
+  const signals=buildSignals(candles,candidate);
+  const train=runSegment(candles,40,split,candidate,signals);
+  const test=runSegment(candles,split,candles.length,candidate,signals);
   return {id:candidate.id,label:candidate.label,train,test,
    holdoutEvidence:test.closedTrades>=30&&(candles.at(-1).closeTime-candles[split].closeTime)>=7*24*60*60*1000?'preliminary':'insufficient',
    promotionEligible:false};
