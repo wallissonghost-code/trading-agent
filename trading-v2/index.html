@@ -107,6 +107,28 @@ main,section,.panel,.metric,.room,.bottom,.office,.robot,.between,.room-top{min-
 .agent-art:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 -15px 34px #03102088}
 @media(max-width:650px){.agent-art{height:270px;min-height:270px}.agent-art img{-webkit-mask-image:linear-gradient(180deg,#000 80%,transparent);mask-image:linear-gradient(180deg,#000 80%,transparent);object-position:center 39%}}
 
+
+/* Neon illustrations with dynamic HTML data, safe on compact screens. */
+.agent-art{background-image:linear-gradient(90deg,transparent 60%,#071321 98%),var(--portrait)!important;
+background-position:center,left 43%!important;background-size:cover,auto 170%!important;background-repeat:no-repeat!important}
+.agent-info{position:relative;z-index:2;min-width:0}
+.agent-result,.agent-rows strong{overflow-wrap:anywhere}
+#liveMarket,#paperMetrics{min-width:0}
+#liveMarket .metric,#paperMetrics .metric{min-width:0;overflow:hidden}
+#liveMarket .metric strong,#paperMetrics .metric strong{font-size:clamp(18px,3.7vw,25px);overflow-wrap:anywhere;line-height:1.2;letter-spacing:-.4px}
+@media(max-width:780px){#liveMarket,#paperMetrics{grid-template-columns:minmax(0,1fr)!important}}
+@media(max-width:560px){
+.agent-art{min-height:230px!important;background-size:cover,auto 175%!important}
+.agent-card{grid-template-columns:minmax(0,42%) minmax(0,58%)!important}
+.agent-info{padding:10px!important}
+.agent-result{font-size:clamp(20px,5vw,28px)!important;letter-spacing:-.7px}
+.agent-name{font-size:clamp(22px,6vw,32px)!important}
+.agent-row{display:grid;grid-template-columns:minmax(0,1fr)!important;gap:3px!important}
+.agent-row strong{text-align:left!important;min-width:0}
+.agent-status{font-size:9px}
+.agent-top{gap:5px}
+#liveMarket .metric strong,#paperMetrics .metric strong{font-size:clamp(18px,5.2vw,25px)!important;white-space:normal}
+}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Cotações públicas da Binance. Os resultados dos robôs vêm exclusivamente da carteira virtual, sem execução de ordens.</p></section>
@@ -126,10 +148,6 @@ const signed=n=>(n>=0?'+':'−')+usd(Math.abs(n));
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let previousPaper=null,busy=false;
 
-function robotIllustration(i){
- const assets=['alpha.jpg','nova.jpg','orion.jpg'];
- return '<img src="/assets/'+assets[i]+'" alt="" loading="'+(i?'lazy':'eager')+'" decoding="async" width="640" height="660">';
-}
 function renderRobots(p){
  const available=Boolean(p?.ready),positions=available?p.positions||[]:[];
  const trades=available?p.trades||[]:[];
@@ -140,7 +158,7 @@ function renderRobots(p){
   const value=available?signed(result):'—';
   const status=!available?'DADOS INDISPONÍVEIS':p?.storageError?'GRAVAÇÃO INDISPONÍVEL':'MONITORANDO';
   const signal=!available?'Aguardando carteira':position?'Posição virtual aberta':'Aguardando sinal';
-  return '<article class="agent-card '+['alpha','nova','orion'][i]+'"><div class="agent-art">'+robotIllustration(i)+'</div>'+
+  return '<article class="agent-card '+['alpha','nova','orion'][i]+'"><div class="agent-art" style="--portrait:url('+r.art+')"></div>+
    '<div class="agent-info"><div class="agent-top"><span class="agent-tag">AGENTE 0'+(i+1)+'</span><span class="agent-status">● '+status+'</span></div>'+
    '<h3 class="agent-name">'+r.name+'</h3><span class="agent-pair">'+r.pair+'</span>'+
    '<div class="agent-result '+(available?(result>=0?'positive':'negative'):'muted')+'">'+value+'</div>'+
