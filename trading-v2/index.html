@@ -27,7 +27,7 @@ function renderRobots(p){
  const trades=available?p.trades||[]:[];
  $('office').innerHTML=robots.map((r,i)=>{
   const position=positions.find(x=>x.symbol===r.symbol);
-  const realized=trades.filter(x=>x.symbol===r.symbol&&x.side==='SELL').reduce((sum,x)=>sum+(Number(x.realizedPnl)||0),0);
+  const realized=Number(p?.agentPnl?.[r.symbol]?.realizedPnl??trades.filter(x=>x.symbol===r.symbol&&x.side==='SELL').reduce((sum,x)=>sum+(Number(x.realizedPnl)||0),0));
   const unrealized=Number(position?.unrealizedPnl||0);
   const result=realized+unrealized;
   const signal=!available?'Dados indisponíveis':position?'Posição virtual aberta':'Aguardando sinal';
