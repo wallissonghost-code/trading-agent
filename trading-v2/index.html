@@ -17,5 +17,17 @@ const office=document.getElementById('office');
 function render(){office.innerHTML=robots.map((r,i)=>'<article class="robot"><div class="robot-head"><div><div class="eyebrow">AGENTE 0'+(i+1)+'</div><strong>'+r.name+'</strong></div><strong class="gain '+(r.pnl>=0?'positive':'negative')+'">'+money(r.pnl)+'</strong></div><div class="station"><div class="monitor '+(r.pnl<0?'red':'')+'"></div><div class="stand"></div><div class="bot"><div class="bot-face"></div><div class="bot-body"></div></div><div class="desk"></div></div><div class="robot-detail"><span>'+r.pair+'</span><span>'+(running?'Analisando (simulado)':'Em espera')+'</span></div></article>').join('');
 const total=robots.reduce((a,r)=>a+r.pnl,0);document.getElementById('pnl').textContent=money(total);document.getElementById('pnl').className=total>=0?'positive':'negative';document.getElementById('capital').textContent='$ '+(10000+total).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function tick(){steps++;const selected=robots[steps%3];selected.pnl=Math.round((selected.pnl+(Math.random()-.48)*18)*100)/100;render();const div=document.createElement('div');const clock=new Date().toLocaleTimeString('pt-BR');div.innerHTML='<span>'+selected.name+' • variação fictícia de resultado</span><span class="'+(selected.pnl>=0?'positive':'negative')+'">'+money(selected.pnl)+' · '+clock+'</span>';const log=document.getElementById('activity');log.prepend(div);while(log.children.length>6)log.lastElementChild.remove();}
-document.getElementById('toggle').addEventListener('click',e=>{running=!running;e.currentTarget.textContent=running?'Pausar demonstração':'Iniciar demonstração';e.currentTarget.classList.toggle('active',running);e.currentTarget.setAttribute('aria-pressed',String(running));document.getElementById('mode').textContent=running?'SIMULAÇÃO ATIVA':'PARADO';clearInterval(timer);if(running)timer=setInterval(tick,2200);render();});render();
+document.getElementById('toggle').addEventListener('click',e=>{running=!running;e.currentTarget.textContent=running?'Pausar demonstração':'Iniciar demonstração';e.currentTarget.classList.toggle('active',running);e.currentTarget.setAttribute('aria-pressed',String(running));document.getElementById('mode').textContent=running?'SIMULAÇÃO ATIVA':'PARADO';clearInterval(timer);if(running){sync();timer=setInterval(sync,3000)}render();});render();
+async function sync(){try{
+const response=await fetch('/api/status',{cache:'no-store'});
+if(!response.ok)throw new Error('HTTP '+response.status);
+const state=await response.json();
+if(state.mode!=='SIMULATION_ONLY'||state.dataSource!=='synthetic')throw new Error('Unexpected data source');
+for(let i=0;i<robots.length;i++)robots[i].pnl=Number(state.agents[i]?.simulatedPnl||0);
+render();
+document.getElementById('mode').textContent='SIMULAÇÃO ONLINE';
+document.getElementById('capital').textContent='$ '+Number(state.capital).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const log=document.getElementById('activity');
+log.innerHTML=(state.history||[]).slice(0,6).map(x=>'<div><span>'+x.agent+' • '+x.symbol+' (fictício)</span><span class="'+(x.simulatedPnl>=0?'positive':'negative')+'">'+money(x.simulatedPnl)+'</span></div>').join('');
+}catch(error){document.getElementById('mode').textContent='API INDISPONÍVEL';console.warn('Simulation API unavailable',error)}}
 </script></body></html>
