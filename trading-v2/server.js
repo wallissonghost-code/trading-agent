@@ -3,6 +3,7 @@ import { analyze, generateMockCandles } from './engine.js';
 import { SYMBOLS, getKlines } from './market.js';
 import { createPaperRunner } from './paper.js';
 import { createSupabaseStore } from './supabase-store.js';
+import { performance } from './performance.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -50,6 +51,13 @@ else if(path==='/api/status')data=payload();
 else if(path==='/api/agents')data={ok:true,simulated:true,agents};
 else if(path==='/api/market')data={ok:true,dataSource:'synthetic',prices};
 else if(path==='/api/paper')data={ok:paperInitError===null, ...paper.status(),error:paperInitError};
+else if(path==='/api/performance'){
+  try{
+    const recent=paperStore?.listTrades?await paperStore.listTrades({limit:100}):paper.status().trades||[];
+    const summary=performance(recent,paper.status().startingCash||10000);
+    data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
+  }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
+}
 else if(path==='/api/trade-history'){
   try{
     const recent=paperStore?.listTrades?await paperStore.listTrades({limit:50}):paper.status().trades||[];
