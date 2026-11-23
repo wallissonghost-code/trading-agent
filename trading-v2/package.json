@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test *.test.js"
+    "test": "node --test *.test.js",
+    "postinstall": "npm test"
   }
 }
