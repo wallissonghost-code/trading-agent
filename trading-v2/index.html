@@ -5,6 +5,56 @@
 .robot{border-color:#32516b;transition:transform .18s,border-color .18s}.robot:hover{transform:translateY(-3px);border-color:#5597bb}.monitor{border-color:#365776}.room{background:radial-gradient(ellipse at 50% -12%,#294d6a 0%,#14283c 55%,#0b1525 100%)}.room:before{content:"";display:block;height:3px;margin:-20px -20px 18px;background:linear-gradient(90deg,transparent,#40d1ad,transparent)}.bot-face{animation:glow 3s infinite alternate}@keyframes glow{from{box-shadow:0 0 12px #91d4ff2a}to{box-shadow:0 0 28px #91d4ff80}}.robot-detail{gap:8px}.robot-detail span:last-child{text-align:right}.room .pill{white-space:nowrap}@media(max-width:480px){.room:before{margin:-12px -12px 14px}.metrics{gap:8px}.metric{padding:12px}.hero{padding:16px}}
 .ledger-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid #24374d;font-size:12px}.ledger-row strong{font-size:13px}.ledger-row:last-child{border-bottom:0}.ledger-row small{display:block;margin-top:4px}.history-totals{font-size:12px;color:#8db6cd}.history-pill{font-size:11px;padding:4px 8px;border-radius:8px;background:#18334b;border:1px solid #385b73}@media(max-width:600px){.ledger-row{grid-template-columns:1fr 1fr;row-gap:8px}.ledger-row .cell-right{text-align:right}}
 .performance-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.performance-chart{width:100%;height:175px;display:block;border-radius:12px;background:linear-gradient(#11243a,#0b1726)}.performance-note{font-size:12px;color:#91a1b9;line-height:1.6}.agent-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}.agent-metrics>div{padding:12px;border:1px solid #2b445c;border-radius:12px;background:#0d1b2c;font-size:12px}.agent-metrics strong{display:block;margin:6px 0;font-size:17px}@media(max-width:750px){.performance-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.agent-metrics{grid-template-columns:1fr}.performance-grid .metric strong{font-size:17px}}
+
+/* Premium robot portraits: generated artwork is decorative; all figures are live HTML. */
+html,body{max-width:100%;overflow-x:clip}
+main,.panel,.metric,.room,.office,.agent-card,.agent-data,.between{min-width:0}
+.metric{min-width:0;overflow:hidden}
+.metric strong{font-size:clamp(15px,3.2vw,25px);line-height:1.25;overflow-wrap:anywhere;word-break:normal;font-variant-numeric:tabular-nums}
+.metric span{overflow-wrap:anywhere;line-height:1.5}
+.room{overflow:hidden}
+.office{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.agent-card{--neon:#38caff;display:grid;grid-template-columns:minmax(0,45%) minmax(0,55%);min-height:250px;border:1px solid var(--neon);border-radius:18px;overflow:hidden;position:relative;background:linear-gradient(135deg,#0c253b,#080e19);box-shadow:0 0 20px color-mix(in srgb,var(--neon) 16%,transparent),inset 0 0 22px color-mix(in srgb,var(--neon) 8%,transparent)}
+.agent-card.nova{--neon:#ffa338}
+.agent-card.orion{--neon:#b46bff}
+.agent-scene{min-width:0;min-height:250px;background-repeat:no-repeat;background-size:auto 196%;background-position:left 47%;filter:saturate(1.12)}
+.agent-data{position:relative;z-index:1;padding:19px 22px 18px 8px;display:flex;flex-direction:column;justify-content:center;gap:8px}
+.agent-top{display:flex;justify-content:space-between;flex-wrap:wrap;gap:7px;align-items:center}
+.agent-index{color:var(--neon);font-size:12px;font-weight:800;letter-spacing:1.4px}
+.agent-online{color:#4fe69d;font-size:10px;letter-spacing:.5px;white-space:nowrap}
+.agent-data h3{margin:0;font-size:clamp(24px,4.5vw,40px);letter-spacing:2px;font-style:italic;line-height:1.1;text-shadow:0 0 16px color-mix(in srgb,var(--neon) 30%,transparent)}
+.agent-symbol{color:#bfd9ee;font-size:13px}
+.agent-result{font-size:clamp(26px,5vw,43px);line-height:1.15;font-weight:800;overflow-wrap:anywhere;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.agent-fields{border:1px solid color-mix(in srgb,var(--neon) 52%,#16253a);border-radius:13px;background:#071421d9;padding:8px 13px}
+.agent-fields>div{display:grid;grid-template-columns:minmax(75px,.85fr) minmax(0,1.15fr);gap:7px;padding:8px 0;border-bottom:1px solid #34516a6b;align-items:start;font-size:12px}
+.agent-fields>div:last-child{border-bottom:0}
+.agent-fields span{color:#93aac3}
+.agent-fields strong{min-width:0;text-align:right;overflow-wrap:anywhere;font-weight:700}
+@media(max-width:800px){
+ #liveMarket,#paperMetrics{grid-template-columns:minmax(0,1fr)!important}
+ .room-top{flex-wrap:wrap}
+ .metrics{gap:9px}
+ .metric{padding:13px}
+ .metric strong{font-size:clamp(16px,4vw,22px)}
+}
+@media(max-width:560px){
+ .agent-card{grid-template-columns:minmax(0,42%) minmax(0,58%);min-height:220px}
+ .agent-scene{min-height:220px;background-size:auto 180%;background-position:10% 48%}
+ .agent-data{padding:12px 10px 12px 0;gap:7px}
+ .agent-data h3{font-size:25px}
+ .agent-result{font-size:clamp(20px,5.8vw,30px)}
+ .agent-index{font-size:10px}
+ .agent-symbol{font-size:11px}
+ .agent-fields{padding:7px}
+ .agent-fields>div{grid-template-columns:minmax(0,1fr);gap:3px;font-size:11px;padding:6px 0}
+ .agent-fields strong{text-align:left}
+ .room{padding:9px}
+ .room-top{padding:6px}
+ .hero h2{font-size:22px}
+ .between{flex-wrap:wrap}
+ .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .metric strong{font-size:clamp(15px,4.3vw,19px)}
+}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Cotações públicas da Binance. Os resultados dos robôs vêm exclusivamente da carteira virtual, sem execução de ordens.</p></section>
@@ -14,9 +64,9 @@
 <p class="disclaimer">O painel lê dados públicos da Binance e simula operações na carteira interna. Não conecta uma conta de corretora, não executa ordens reais e não garante retorno financeiro.</p>
 </main><script>
 const robots=[
- {name:'ALPHA',symbol:'BTCUSDT',pair:'BTC/USDT'},
- {name:'NOVA',symbol:'ETHUSDT',pair:'ETH/USDT'},
- {name:'ORION',symbol:'SOLUSDT',pair:'SOL/USDT'}
+ {name:'ALPHA',symbol:'BTCUSDT',pair:'BTC/USDT',art:'/assets/alpha.jpg',tone:'alpha'},
+ {name:'NOVA',symbol:'ETHUSDT',pair:'ETH/USDT',art:'/assets/nova.jpg',tone:'nova'},
+ {name:'ORION',symbol:'SOLUSDT',pair:'SOL/USDT',art:'/assets/orion.jpg',tone:'orion'}
 ];
 const $=id=>document.getElementById(id);
 const usd=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'USD'});
@@ -26,15 +76,24 @@ let previousPaper=null,busy=false;
 function renderRobots(p){
  const available=Boolean(p?.ready);
  const positions=available?p.positions||[]:[];
- const trades=available?p.trades||[]:[];
  $('office').innerHTML=robots.map((r,i)=>{
   const position=positions.find(x=>x.symbol===r.symbol);
-  const realized=Number(p?.agentPnl?.[r.symbol]?.realizedPnl??trades.filter(x=>x.symbol===r.symbol&&x.side==='SELL').reduce((sum,x)=>sum+(Number(x.realizedPnl)||0),0));
-  const unrealized=Number(position?.unrealizedPnl||0);
+  const realized=Number(p?.agentPnl?.[r.symbol]?.realizedPnl||0);
+  const unrealized=Number(p?.agentPnl?.[r.symbol]?.unrealizedPnl??position?.unrealizedPnl??0);
   const result=realized+unrealized;
-  const signal=!available?'Dados indisponíveis':position?'Posição virtual aberta':'Aguardando sinal';
+  const signal=!available?'Carteira indisponível':position?'Posição virtual aberta':'Aguardando sinal';
   const value=available?signed(result):'—';
-  return '<article class="robot"><div class="robot-head"><div><div class="eyebrow">AGENTE 0'+(i+1)+'</div><strong>'+r.name+'</strong></div><strong class="gain '+(available?(result>=0?'positive':'negative'):'muted')+'">'+value+'</strong></div><div class="station"><div class="monitor '+(available&&result<0?'red':'')+'"></div><div class="stand"></div><div class="bot"><div class="bot-face"></div><div class="bot-body"></div></div><div class="desk"></div></div><div class="robot-detail"><span>'+r.pair+'</span><span>'+signal+'</span></div><div class="robot-detail"><span>Realizado: '+(available?usd(realized):'—')+'</span><span>Em aberto: '+(available?usd(unrealized):'—')+'</span></div></article>';
+  const gainClass=!available?'muted':result<0?'negative':'positive';
+  const badge=available?'● MONITORANDO':'● INDISPONÍVEL';
+  return '<article class="agent-card '+r.tone+'">'+
+   '<div class="agent-scene" style="background-image:linear-gradient(90deg,transparent 55%,#091322),url(\''+r.art+'\')"></div>'+
+   '<div class="agent-data"><div class="agent-top"><span class="agent-index">AGENTE 0'+(i+1)+'</span><span class="agent-online">'+badge+'</span></div>'+
+   '<h3>'+r.name+'</h3><div class="agent-symbol">'+r.pair+' • PAPER</div>'+
+   '<div class="agent-result '+gainClass+'">'+value+'</div>'+
+   '<div class="agent-fields"><div><span>Situação</span><strong>'+signal+'</strong></div>'+
+   '<div><span>Realizado</span><strong>'+ (available?signed(realized):'—')+'</strong></div>'+
+   '<div><span>Em aberto</span><strong>'+ (available?signed(unrealized):'—')+'</strong></div></div>'+
+   '</div></article>';
  }).join('');
 }
 function renderPaper(p){
