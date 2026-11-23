@@ -95,11 +95,12 @@ export function runStrategyLab(candles,{symbol='BTCUSDT'}={}){
   const train=runSegment(candles,40,split,candidate);
   const test=runSegment(candles,split,candles.length,candidate);
   return {id:candidate.id,label:candidate.label,train,test,
-   holdoutEvidence:test.closedTrades>=30?'preliminary':'insufficient',
+   holdoutEvidence:test.closedTrades>=30&&(candles.at(-1).closeTime-candles[split].closeTime)>=7*24*60*60*1000?'preliminary':'insufficient',
    promotionEligible:false};
  });
  return {symbol,mode:'RESEARCH_ONLY',source:'binance_public_spot',
   candles:candles.length,interval:'5m',trainCandles:split,testCandles:candles.length-split,
+  shortWindowWarning:'Historical window under multiple market regimes; results are not strategy validation',
   trainEndsAt:new Date(candles[split-1].closeTime).toISOString(),
   testStartsAt:new Date(candles[split].time??candles[split].closeTime-299999).toISOString(),
   testedParameters:LAB_CANDIDATES.length,feeRate:FEE_RATE,slippageRate:SLIPPAGE_RATE,
