@@ -7,7 +7,7 @@ const round=(x,n=8)=>Number(x.toFixed(n));
 const fee=0.001;
 const maxPositions=2;
 const maxExposure=0.5;
-export const createAccount=()=>({schema:1,startingCash:10000,cash:10000,realizedPnl:0,realizedBySymbol:{},lastMarks:{},positions:{},trades:[],lastCandle:{},lastError:{},updatedAt:null});
+export const createAccount=()=>({schema:1,startingCash:10000,cash:10000,realizedPnl:0,realizedBySymbol:{},lastMarks:{},lastDecision:null,positions:{},trades:[],lastCandle:{},lastError:{},updatedAt:null});
 export function snapshot(account, quotes={}){
   const positions=Object.values(account.positions).map(p=>{const markPrice=quotes[p.symbol]||account.lastMarks?.[p.symbol]||p.entry;return {...p,markPrice,unrealizedPnl:round((markPrice-p.entry)*p.quantity - p.entry*p.quantity*fee - markPrice*p.quantity*fee,2)};});
   const equity=account.cash+positions.reduce((sum,p)=>sum+p.quantity*p.markPrice,0);
@@ -29,6 +29,11 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
   // Single close per symbol avoids replay after restart. This is paper execution at a closed candle price,
   // NOT a realizable historical fill. Intrabar stop/take uses conservative stop-first assumption.
   const position=account.positions[symbol];
+  const previousTradeCount=account.trades.length;
+  const decision={symbol,candleCloseTime:c.closeTime,observedAt:now,strategy:'EMA_RSI_V1',classification:signal.classification,price:c.close,
+    rsi14:Number.isFinite(signal.rsi14)?signal.rsi14:null,ema9:Number.isFinite(signal.ema9)?signal.ema9:null,
+    ema21:Number.isFinite(signal.ema21)?signal.ema21:null,atr14:Number.isFinite(signal.atr14)?signal.atr14:null,
+    action:'WAIT',reason:'NO_NEW_ENTRY',simulated:true};
   if(position){
     const stopped=c.low<=position.stop;
     const targetHit=c.high>=position.take;
@@ -43,13 +48,14 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
       account.realizedBySymbol[symbol]=round((account.realizedBySymbol[symbol]||0)+pnl,8);
       account.trades.unshift({symbol,side:'SELL',reason:stopped?'STOP_LOSS':'TAKE_PROFIT',price:fill,quantity:position.quantity,fee:round(sellFee,8),realizedPnl:round(pnl,2),time:now,candleCloseTime:c.closeTime,simulated:true});
       delete account.positions[symbol];
-    }
+      decision.action='SELL';decision.reason=stopped?'STOP_LOSS':'TAKE_PROFIT';
+    }else{decision.reason='POSITION_OPEN';}
   }else if(signal.classification==='watch_long'&&Object.keys(account.positions).length<maxPositions){
     // Other pairs have different price scales; use their recorded entry notionals, never this symbol's price.
     const exposure=Object.values(account.positions).reduce((s,p)=>s+p.quantity*p.entry,0);
     const equity=account.cash+Object.values(account.positions).reduce((s,p)=>s+p.quantity*(account.lastMarks[p.symbol]||p.entry),0);
     const drawdown=(account.startingCash-equity)/account.startingCash;
-    if(drawdown>=0.05){account.lastCandle[symbol]=c.closeTime;account.updatedAt=now;return {processed:true,reason:'portfolio_drawdown_lock'};}
+    if(drawdown>=0.05){decision.reason='PORTFOLIO_DRAWDOWN_LOCK';account.lastDecision=decision;account.lastCandle[symbol]=c.closeTime;account.updatedAt=now;return {processed:true,reason:'portfolio_drawdown_lock'};}
     const stop=signal.exampleStop;
     const riskBudget=Math.max(0,0.01*equity);
     const riskPerUnit=(c.close-stop)+2*fee*c.close;
@@ -62,8 +68,10 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
       account.cash=round(account.cash-cost,8);
       account.positions[symbol]={symbol,entry:c.close,stop:round(stop),take:round(c.close+2*(c.close-stop)),quantity:round(quantity),cost:round(cost),openedAt:now,entryCandle:c.closeTime};
       account.trades.unshift({symbol,side:'BUY',reason:'EMA_RSI_WATCH_LONG',price:c.close,quantity:round(quantity),fee:round(notional*fee,8),realizedPnl:null,time:now,candleCloseTime:c.closeTime,simulated:true});
+      decision.action='BUY';decision.reason='EMA_RSI_WATCH_LONG';
     }
   }
+  account.lastDecision=decision;
   account.lastCandle[symbol]=c.closeTime;
   account.updatedAt=now;
   account.trades.splice(100);
