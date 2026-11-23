@@ -24,3 +24,16 @@ test('network failure fails closed rather than resetting state',async()=>{
  const store=createSupabaseStore({url:'https://example.supabase.co',key:'test-secret',fetchFn:async()=>({ok:false,status:503,text:async()=>'unavailable'})});
  await assert.rejects(()=>store.load(),/HTTP 503/);
 });
+
+test('reads trade ledger without exposing credentials and respects limit',async()=>{
+ const trade={symbol:'BTCUSDT',side:'BUY',time:'2026-11-23T00:00:00.000Z',price:100,quantity:1};
+ const store=createSupabaseStore({url:'https://example.supabase.co',key:'private-test-key',fetchFn:async(url,opts)=>{
+  assert.equal(opts.headers.apikey,'private-test-key');
+  assert.equal(opts.method,'GET');
+  assert.equal(url.pathname,'/rest/v1/trading_paper_ledger');
+  assert.equal(url.searchParams.get('portfolio_id'),'eq.main');
+  assert.equal(url.searchParams.get('limit'),'100');
+  return {ok:true,text:async()=>JSON.stringify([{trade}])};
+ }});
+ assert.deepEqual(await store.listTrades({limit:999}),[trade]);
+});
