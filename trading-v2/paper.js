@@ -38,8 +38,11 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
       delete account.positions[symbol];
     }
   }else if(signal.classification==='watch_long'&&Object.keys(account.positions).length<maxPositions){
-    const equity=account.cash+Object.values(account.positions).reduce((s,p)=>s+p.quantity*c.close,0);
-    const exposure=Object.values(account.positions).reduce((s,p)=>s+p.quantity*c.close,0);
+    // Other pairs have different price scales; use their recorded entry notionals, never this symbol's price.
+    const exposure=Object.values(account.positions).reduce((s,p)=>s+p.quantity*p.entry,0);
+    const equity=account.cash+exposure;
+    const drawdown=(account.startingCash-equity)/account.startingCash;
+    if(drawdown>=0.05){account.lastCandle[symbol]=c.closeTime;account.updatedAt=now;return {processed:true,reason:'portfolio_drawdown_lock'};}
     const stop=signal.exampleStop;
     const riskBudget=Math.max(0,0.01*equity);
     const riskPerUnit=(c.close-stop)+2*fee*c.close;
