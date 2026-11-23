@@ -19,7 +19,7 @@ test('all premium robot assets are valid local JPEG files',()=>{
   assert.ok(bytes.length>10000);
   assert.equal(bytes[0],0xff);
   assert.equal(bytes[1],0xd8);
-  assert.ok(html.includes('/assets/'+name+'.jpg'));
+  assert.ok(html.includes('/assets/'+name+'-portrait.jpg'));
  }
 });
 test('market cards and portfolio prevent mobile overlap',()=>{
