@@ -17,6 +17,16 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
  }
  return {
   kind:'supabase',
+  async listTrades({limit=50}={}){
+   const query=new URL('/rest/v1/trading_paper_ledger',origin);
+   query.searchParams.set('portfolio_id','eq.'+id);
+   query.searchParams.set('select','trade');
+   query.searchParams.set('order','executed_at.desc');
+   query.searchParams.set('limit',String(Math.max(1,Math.min(100,Number(limit)||50))));
+   const rows=await request('GET',query);
+   if(!Array.isArray(rows))throw new Error('Invalid trade ledger response');
+   return rows.map(row=>row.trade);
+  },
   async load(){
    const query=new URL(base);query.searchParams.set('id','eq.'+id);query.searchParams.set('select','state');
    const rows=await request('GET',query);
