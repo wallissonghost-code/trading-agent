@@ -158,7 +158,7 @@ function renderRobots(p){
   const value=available?signed(result):'—';
   const status=!available?'DADOS INDISPONÍVEIS':p?.storageError?'GRAVAÇÃO INDISPONÍVEL':'MONITORANDO';
   const signal=!available?'Aguardando carteira':position?'Posição virtual aberta':'Aguardando sinal';
-  return '<article class="agent-card '+['alpha','nova','orion'][i]+'"><div class="agent-art" style="--portrait:url('+r.art+')"></div>+
+  return '<article class="agent-card '+['alpha','nova','orion'][i]+'"><div class="agent-art" style="--portrait:url('+r.art+')"></div>'+
    '<div class="agent-info"><div class="agent-top"><span class="agent-tag">AGENTE 0'+(i+1)+'</span><span class="agent-status">● '+status+'</span></div>'+
    '<h3 class="agent-name">'+r.name+'</h3><span class="agent-pair">'+r.pair+'</span>'+
    '<div class="agent-result '+(available?(result>=0?'positive':'negative'):'muted')+'">'+value+'</div>'+
