@@ -42,7 +42,7 @@ const payload=()=>{const pnl=Math.round(agents.reduce((s,a)=>s+a.simulatedPnl,0)
 const server=http.createServer(async(req,res)=>{
 const path=new URL(req.url||'/', 'http://localhost').pathname;
 if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'allow':'GET, HEAD'});return res.end();}
-const robotAssetNames=new Set(['alpha.jpg','nova.jpg','orion.jpg']);
+const robotAssetNames=new Set(['alpha.jpg','nova.jpg','orion.jpg','alpha-portrait.jpg','nova-portrait.jpg','orion-portrait.jpg']);
 if(path.startsWith('/assets/')){
  const filename=path.slice('/assets/'.length);
  if(!robotAssetNames.has(filename)){res.writeHead(404);return res.end('Not found');}
