@@ -80,12 +80,13 @@ export async function saveAccount(path,account){
 }
 export function createPaperRunner({path,store=null,fetchKlines=getKlines,clock=()=>new Date()}){
   const persistence=store||{kind:'local_ephemeral',load:()=>loadAccount(path),save:a=>saveAccount(path,a)};
-  let account=null,busy=false,quotes={};
+  let account=null,busy=false,quotes={},storageFault=null;
   return {
     async init(){account=await persistence.load();return this.status();},
-    status(){if(!account)return {ready:false,mode:'PAPER_ONLY',executionEnabled:false};return {ready:true,...snapshot(account,quotes),persistence:persistence.kind};},
+    status(){if(!account)return {ready:false,mode:'PAPER_ONLY',executionEnabled:false,persistence:persistence.kind};return {ready:!storageFault,...snapshot(account,quotes),persistence:persistence.kind,storageError:storageFault};},
     async runOnce(){
       if(!account)throw Error('Paper runner not initialized');
+      if(storageFault)throw Error('Paper runner halted after persistence error: '+storageFault);
       if(busy)return {skipped:true,reason:'busy'};
       busy=true;
       try{
@@ -94,11 +95,16 @@ export function createPaperRunner({path,store=null,fetchKlines=getKlines,clock=(
             const {candles}=await fetchKlines(symbol);
             const last=candles.at(-1);quotes[symbol]=last.close;
             const before=account.lastCandle[symbol];
+            const checkpoint=structuredClone(account);
             processCandle(account,symbol,candles,{now:clock().toISOString()});
+            if(account.lastCandle[symbol]!==before){
+              try{await persistence.save(account);}
+              catch(error){account=checkpoint;storageFault=String(error.message||error).slice(0,160);throw error;}
+            }
             delete account.lastError[symbol];
-            if(account.lastCandle[symbol]!==before)await persistence.save(account);
           }catch(err){
             account.lastError[symbol]=String(err.message||err).slice(0,180);
+            if(storageFault)break;
           }
         }
         return this.status();
