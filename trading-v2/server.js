@@ -2,13 +2,16 @@ import http from 'node:http';
 import { analyze, generateMockCandles } from './engine.js';
 import { SYMBOLS, getKlines } from './market.js';
 import { createPaperRunner } from './paper.js';
+import { createSupabaseStore } from './supabase-store.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const boot = Date.now();
-const paper=createPaperRunner({path:process.env.PAPER_STATE_PATH||'/tmp/trading-agent-paper.json'});
+const remoteConfigured=Boolean(process.env.SUPABASE_URL&&(process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY));
+const paperStore=remoteConfigured?createSupabaseStore():null;
+const paper=createPaperRunner({path:process.env.PAPER_STATE_PATH||'/tmp/trading-agent-paper.json',store:paperStore});
 let paperInitError=null;
 async function startPaper(){
  try{await paper.init();await paper.runOnce();setInterval(()=>paper.runOnce().catch(err=>console.error('paper cycle error:',err.message)),60000).unref();}
