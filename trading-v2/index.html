@@ -100,6 +100,13 @@ main,section,.panel,.metric,.room,.bottom,.office,.robot,.between,.room-top{min-
 }
 @media(max-width:370px){.agent-row{align-items:flex-start;flex-wrap:wrap}.agent-row strong{text-align:left}.agent-top{font-size:10px}.agent-art{height:220px;min-height:220px}}
 
+
+/* Cinematic original portraits are static assets; all prices, status and P&L remain live DOM text. */
+.agent-art{min-height:310px;height:100%;background:#071729}
+.agent-art img{width:100%;height:100%;display:block;object-fit:cover;object-position:50% 35%;-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}
+.agent-art:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 -15px 34px #03102088}
+@media(max-width:650px){.agent-art{height:270px;min-height:270px}.agent-art img{-webkit-mask-image:linear-gradient(180deg,#000 80%,transparent);mask-image:linear-gradient(180deg,#000 80%,transparent);object-position:center 39%}}
+
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Cotações públicas da Binance. Os resultados dos robôs vêm exclusivamente da carteira virtual, sem execução de ordens.</p></section>
@@ -120,49 +127,8 @@ const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 let previousPaper=null,busy=false;
 
 function robotIllustration(i){
- const accent=['#20cfff','#ff9b2e','#ba53ff'][i], letter=['A','N','O'][i], key='r'+i;
- return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 320" role="presentation" preserveAspectRatio="xMidYMid slice">
- <defs>
-  <linearGradient id="${key}armor" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#eaf5ff"/><stop offset=".34" stop-color="#859bb8"/><stop offset=".7" stop-color="#23334f"/><stop offset="1" stop-color="#d1e5fb"/></linearGradient>
-  <linearGradient id="${key}night" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#152943"/><stop offset="1" stop-color="#030b16"/></linearGradient>
-  <linearGradient id="${key}glow" x1="0" y1="0" x2="1" y2="0"><stop stop-color="${accent}" stop-opacity=".1"/><stop offset=".5" stop-color="${accent}" stop-opacity=".65"/><stop offset="1" stop-color="${accent}" stop-opacity=".06"/></linearGradient>
-  <filter id="${key}blur"><feGaussianBlur stdDeviation="11"/></filter>
- </defs>
- <rect width="460" height="320" fill="url(#${key}night)"/>
- <ellipse cx="235" cy="120" rx="175" ry="115" fill="${accent}" opacity=".12" filter="url(#${key}blur)"/>
- <g opacity=".45" fill="none" stroke="${accent}" stroke-width="1"><path d="M0 40H460M0 120H460M0 220H460"/><path d="M60 0V320M175 0V320M365 0V320"/></g>
- <g transform="translate(257 53) rotate(-4)">
-  <rect width="170" height="133" rx="9" fill="#031020" stroke="#3d6688" stroke-width="8"/>
-  <rect x="9" y="8" width="152" height="115" rx="3" fill="#071b30"/>
-  <g stroke="#36506d" stroke-width=".8" opacity=".65"><path d="M9 38h152M9 69h152M9 100h152M39 8v115M72 8v115M105 8v115M137 8v115"/></g>
-  <polyline points="13,85 25,72 36,80 48,61 58,66 70,51 82,58 95,33 108,42 124,24 135,35 155,18" fill="none" stroke="#25f2a5" stroke-width="3"/>
-  <g stroke-width="5"><path d="M31 96v-15M58 85v-21M85 77v-27M112 55v-22M144 51v-19" stroke="#26dcaa"/><path d="M44 83v-11M72 77v-16M100 49v-19M132 39v-15" stroke="#ff6178"/></g>
-  <path d="M82 133v24M52 157h60" stroke="#526e88" stroke-width="8"/>
- </g>
- <g transform="translate(8 9)">
-  <path d="M37 92Q17 48 76 44H144Q192 44 174 103L158 230Q112 250 57 221Z" fill="#08182e" stroke="${accent}" stroke-width="6"/>
-  <text x="106" y="85" fill="${accent}" text-anchor="middle" font-size="40" font-weight="900">${letter}</text>
- </g>
- <path d="M106 241Q89 193 121 169Q140 156 207 169Q238 187 249 246L274 307H79Z" fill="url(#${key}armor)" stroke="#435574" stroke-width="4"/>
- <path d="M145 186L175 202L205 185L218 241L177 260L129 234Z" fill="#182b48" stroke="${accent}" stroke-width="3"/>
- <text x="173" y="236" font-size="37" fill="${accent}" font-weight="900" text-anchor="middle">${letter}</text>
- <path d="M95 206Q57 212 53 258L65 300L100 301L125 245Z" fill="url(#${key}armor)" stroke="#385475" stroke-width="4"/>
- <path d="M232 211Q260 217 288 253L287 284L250 286L220 247Z" fill="url(#${key}armor)" stroke="#385475" stroke-width="4"/>
- <g transform="translate(131 50) rotate(7)">
-  <path d="M-16 49Q-27 -2 22 -26Q60 -46 96 -10Q128 25 101 83L77 107L20 104Z" fill="url(#${key}armor)" stroke="#506786" stroke-width="5"/>
-  <path d="M3 41Q19 18 90 22Q104 31 94 67Q72 93 32 85Z" fill="#031121" stroke="${accent}" stroke-width="4"/>
-  <path d="M26 59L54 52M67 50L86 45" stroke="${accent}" stroke-width="6" stroke-linecap="round"/>
-  <ellipse cx="-10" cy="49" rx="18" ry="22" fill="#102038" stroke="${accent}" stroke-width="7"/>
-  <ellipse cx="-10" cy="49" rx="7" ry="10" fill="${accent}"/>
-  <text x="51" y="14" font-size="21" text-anchor="middle" fill="#0a2a48" font-weight="900">${letter}</text>
-  <path d="M20 104L44 116L81 109" fill="none" stroke="${accent}" stroke-width="5"/>
- </g>
- <path d="M251 278L311 263L349 270L308 291Z" fill="#758da8" stroke="#304863" stroke-width="3"/>
- <rect x="0" y="296" width="460" height="24" fill="#142943" stroke="${accent}" stroke-width="2"/>
- <path d="M0 297H460" stroke="${accent}" stroke-width="4"/>
- <path d="M64 291L204 280L322 294" fill="none" stroke="${accent}" stroke-width="3" opacity=".7"/>
- <rect x="0" y="0" width="460" height="8" fill="url(#${key}glow)"/>
- </svg>`;
+ const assets=['alpha.jpg','nova.jpg','orion.jpg'];
+ return '<img src="/assets/'+assets[i]+'" alt="" loading="'+(i?'lazy':'eager')+'" decoding="async" width="640" height="660">';
 }
 function renderRobots(p){
  const available=Boolean(p?.ready),positions=available?p.positions||[]:[];
