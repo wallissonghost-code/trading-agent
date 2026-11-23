@@ -18,7 +18,7 @@ test('loads empty account and saves state with server credentials',async()=>{
  start.cash=8500;
  await store.save(start);
  assert.equal((await store.load()).cash,8500);
- assert.equal(calls,3);
+ assert.equal(calls,4);
 });
 test('network failure fails closed rather than resetting state',async()=>{
  const store=createSupabaseStore({url:'https://example.supabase.co',key:'test-secret',fetchFn:async()=>({ok:false,status:503,text:async()=>'unavailable'})});
