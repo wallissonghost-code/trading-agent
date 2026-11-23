@@ -78,11 +78,12 @@ export async function saveAccount(path,account){
   await writeFile(tmp,JSON.stringify(account),{mode:0o600});
   await rename(tmp,path);
 }
-export function createPaperRunner({path,fetchKlines=getKlines,clock=()=>new Date()}){
+export function createPaperRunner({path,store=null,fetchKlines=getKlines,clock=()=>new Date()}){
+  const persistence=store||{kind:'local_ephemeral',load:()=>loadAccount(path),save:a=>saveAccount(path,a)};
   let account=null,busy=false,quotes={};
   return {
-    async init(){account=await loadAccount(path);return this.status();},
-    status(){if(!account)return {ready:false,mode:'PAPER_ONLY',executionEnabled:false};return {ready:true,...snapshot(account,quotes)};},
+    async init(){account=await persistence.load();return this.status();},
+    status(){if(!account)return {ready:false,mode:'PAPER_ONLY',executionEnabled:false};return {ready:true,...snapshot(account,quotes),persistence:persistence.kind};},
     async runOnce(){
       if(!account)throw Error('Paper runner not initialized');
       if(busy)return {skipped:true,reason:'busy'};
@@ -95,7 +96,7 @@ export function createPaperRunner({path,fetchKlines=getKlines,clock=()=>new Date
             const before=account.lastCandle[symbol];
             processCandle(account,symbol,candles,{now:clock().toISOString()});
             delete account.lastError[symbol];
-            if(account.lastCandle[symbol]!==before)await saveAccount(path,account);
+            if(account.lastCandle[symbol]!==before)await persistence.save(account);
           }catch(err){
             account.lastError[symbol]=String(err.message||err).slice(0,180);
           }
