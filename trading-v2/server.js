@@ -6,6 +6,8 @@ import { createSupabaseStore } from './supabase-store.js';
 import { performance } from './performance.js';
 import { summarizeSignalOutcomes } from './signal-evaluation.js';
 import { runStrategyLab } from './strategy-lab.js';
+import { getMultiweekHistory } from './historical-market.js';
+import { runWalkForward } from './walk-forward.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -65,6 +67,42 @@ async function getStrategyLabReport(){
  try{return await strategyLabPromise;}
  finally{strategyLabPromise=null;}
 }
+// Multiweek studies are low-priority, on-demand, cached, read-only jobs.
+// Return immediately to mobile clients; data collection continues in the Node service.
+let forwardStudy={status:'idle',generatedAt:null,startedAt:null,completed:0,total:SYMBOLS.length,results:[]};
+let forwardStudyStartedAt=0;
+function getForwardStudy(){
+ const stamp=Date.now();
+ const age=stamp-forwardStudyStartedAt;
+ const shouldStart=forwardStudy.status==='idle'||
+  (forwardStudy.status==='ready'&&age>30*60*1000)||
+  (forwardStudy.status==='error'&&age>5*60*1000);
+ if(shouldStart){
+  forwardStudyStartedAt=stamp;
+  forwardStudy={status:'running',startedAt:new Date(stamp).toISOString(),generatedAt:null,
+    completed:0,total:SYMBOLS.length,results:[]};
+  void Promise.all(SYMBOLS.map(async symbol=>{
+   try{
+    const history=await getMultiweekHistory(symbol);
+    const report=runWalkForward(history.candles,{symbol});
+    return {ok:true,...report,source:history.source,from:history.from,to:history.to,pages:history.pages};
+   }catch(e){
+    console.error('Walk-forward historical study:',symbol,String(e.message||e).slice(0,140));
+    return {ok:false,symbol,error:'Histórico completo indisponível ou com intervalo faltante'};
+   }finally{
+    forwardStudy.completed++;
+   }
+  })).then(results=>{
+   forwardStudy={...forwardStudy,status:'ready',generatedAt:new Date().toISOString(),results};
+  }).catch(error=>{
+   console.error('Walk-forward study failed:',String(error.message||error).slice(0,120));
+   forwardStudy={...forwardStudy,status:'error',error:'Falha ao processar pesquisa histórica'};
+  });
+ }
+ return {ok:forwardStudy.status!=='error',mode:'RESEARCH_ONLY',
+  autoPromotionEnabled:false,orderExecutionEnabled:false,newsTradingEnabled:false,
+  historicalPersistence:'memory_cache_only',...forwardStudy};
+}
 const server=http.createServer(async(req,res)=>{
 const path=new URL(req.url||'/', 'http://localhost').pathname;
 if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'allow':'GET, HEAD'});return res.end();}
@@ -94,6 +132,7 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
+else if(path==='/api/walk-forward')data=getForwardStudy();
 else if(path==='/api/strategy-lab'){
   data=await getStrategyLabReport();
 }
