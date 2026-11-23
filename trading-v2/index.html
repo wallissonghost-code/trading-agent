@@ -129,6 +129,32 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 .agent-top{gap:5px}
 #liveMarket .metric strong,#paperMetrics .metric strong{font-size:clamp(18px,5.2vw,25px)!important;white-space:normal}
 }
+
+/* V3.1: full robot portraits; no truncation on narrow displays. */
+.agent-art{
+ min-height:300px!important;
+ height:auto;
+ background-image:radial-gradient(ellipse at 52% 40%,color-mix(in srgb,var(--neon) 18%,#071523),#06111f 75%),var(--portrait)!important;
+ background-size:cover,auto 98%!important;
+ background-position:center,center center!important;
+ background-repeat:no-repeat!important;
+}
+.agent-card{align-items:stretch}
+.agent-info{min-width:0;overflow-wrap:anywhere}
+@media (max-width:800px){
+ .agent-card{grid-template-columns:minmax(0,1fr)!important}
+ .agent-art{height:clamp(230px,72vw,350px)!important;min-height:230px!important;background-size:cover,auto 100%!important;background-position:center,center!important}
+ .agent-info{padding:16px 18px 19px!important}
+ .agent-result{font-size:clamp(24px,7vw,37px)!important}
+ .agent-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;display:grid!important;gap:12px!important}
+ .agent-row strong{text-align:right!important}
+}
+@media (max-width:390px){
+ .agent-art{height:255px!important}
+ .agent-row{grid-template-columns:minmax(0,1fr)!important;gap:4px!important}
+ .agent-row strong{text-align:left!important}
+ .agent-info{padding:12px 14px 16px!important}
+}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Cotações públicas da Binance. Os resultados dos robôs vêm exclusivamente da carteira virtual, sem execução de ordens.</p></section>
@@ -138,9 +164,9 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 <p class="disclaimer">O painel lê dados públicos da Binance e simula operações na carteira interna. Não conecta uma conta de corretora, não executa ordens reais e não garante retorno financeiro.</p>
 </main><script>
 const robots=[
- {name:'ALPHA',symbol:'BTCUSDT',pair:'BTC/USDT',art:'/assets/alpha.jpg',tone:'alpha'},
- {name:'NOVA',symbol:'ETHUSDT',pair:'ETH/USDT',art:'/assets/nova.jpg',tone:'nova'},
- {name:'ORION',symbol:'SOLUSDT',pair:'SOL/USDT',art:'/assets/orion.jpg',tone:'orion'}
+ {name:'ALPHA',symbol:'BTCUSDT',pair:'BTC/USDT',art:'/assets/alpha-portrait.jpg',tone:'alpha'},
+ {name:'NOVA',symbol:'ETHUSDT',pair:'ETH/USDT',art:'/assets/nova-portrait.jpg',tone:'nova'},
+ {name:'ORION',symbol:'SOLUSDT',pair:'SOL/USDT',art:'/assets/orion-portrait.jpg',tone:'orion'}
 ];
 const $=id=>document.getElementById(id);
 const usd=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'USD'});
