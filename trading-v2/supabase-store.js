@@ -17,6 +17,37 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
  }
  return {
   kind:'supabase',
+  async recordMonitoringTransitions(symbols){
+   if(!Array.isArray(symbols)||symbols.length!==3||
+    symbols.some(x=>!['BTCUSDT','ETHUSDT','SOLUSDT'].includes(x.symbol)||
+    !['MONITORING','STALE_DATA','COLLECTION_ERROR','AWAITING_COLLECTION'].includes(x.status)))
+    throw Error('Invalid monitoring status snapshot');
+   const path=new URL('/rest/v1/rpc/trading_record_health_transitions',origin);
+   const result=await request('POST',path,{p_portfolio:id,
+    p_snapshot:symbols.map(x=>({symbol:x.symbol,status:x.status}))});
+   if(result?.ok!==true||!Number.isInteger(result.transitions))
+    throw Error('Monitoring event write not acknowledged');
+   return result;
+  },
+  async listMonitoringEvents({limit=40}={}){
+   const path=new URL('/rest/v1/trading_monitor_events',origin);
+   path.searchParams.set('portfolio_id','eq.'+id);
+   path.searchParams.set('select','symbol,previous_status,new_status,kind,recorded_at');
+   path.searchParams.set('order','recorded_at.desc,id.desc');
+   path.searchParams.set('limit',String(Math.max(1,Math.min(100,Number(limit)||40))));
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows))throw Error('Invalid monitor event history');
+   return rows;
+  },
+  async listMonitoringStates(){
+   const path=new URL('/rest/v1/trading_monitor_state',origin);
+   path.searchParams.set('portfolio_id','eq.'+id);
+   path.searchParams.set('select','symbol,status,last_checked_at,status_changed_at');
+   path.searchParams.set('order','symbol.asc');
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows))throw Error('Invalid monitor state response');
+   return rows;
+  },
   async getFrozenShadowStudy(version='shadow-v1-20261124'){
    const path=new URL('/rest/v1/trading_shadow_studies',origin);
    path.searchParams.set('version','eq.'+version);
