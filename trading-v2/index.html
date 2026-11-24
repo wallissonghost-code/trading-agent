@@ -378,6 +378,7 @@ const usd=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'USD'})
 const signed=n=>(n>=0?'+':'−')+usd(Math.abs(n));
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let previousPaper=null,busy=false;
+let latestAgentDiagnostics=null;
 
 function renderRobots(p){
  const available=Boolean(p?.ready),positions=available?p.positions||[]:[];
@@ -387,13 +388,14 @@ function renderRobots(p){
   const realized=Number(p?.agentPnl?.[r.symbol]?.realizedPnl??trades.filter(t=>t.symbol===r.symbol&&t.side==='SELL').reduce((sum,t)=>sum+(Number(t.realizedPnl)||0),0));
   const unrealized=Number(position?.unrealizedPnl||0),result=realized+unrealized;
   const value=available?signed(result):'—';
-  const status=!available?'DADOS INDISPONÍVEIS':p?.storageError?'GRAVAÇÃO INDISPONÍVEL':'MONITORANDO';
-  const signal=!available?'Aguardando carteira':position?'Posição virtual aberta':'Aguardando sinal';
+  const diag=latestAgentDiagnostics?.agents?.find(x=>x.symbol===r.symbol);
+  const status=diag?({OPERANDO:'OPERANDO (PAPER)',AGUARDANDO_SINAL:'AGUARDANDO SINAL',COLETA_ATRASADA:'COLETA ATRASADA',SEM_DADOS:'SEM DADOS',ERRO:'FALHA DETECTADA',PAUSADO:'PAUSADO'}[diag.state]||diag.state):'DIAGNÓSTICO INDISPONÍVEL';
+  const signal=diag?.reason||(!available?'Aguardando carteira':'Aguardando diagnóstico');
   return '<article class="agent-card '+['alpha','nova','orion'][i]+'"><div class="agent-art"><img src="'+r.art+'" alt="Ilustração do robô '+r.name+' na mesa de operações" decoding="async" loading="lazy" onerror="this.closest(\'.agent-art\').classList.add(\'art-error\')"></div>'+
    '<div class="agent-info"><div class="agent-top"><span class="agent-tag">AGENTE 0'+(i+1)+'</span><span class="agent-status">● '+status+'</span></div>'+
    '<h3 class="agent-name">'+r.name+'</h3><span class="agent-pair">'+r.pair+'</span>'+
    '<div class="agent-result '+(available?(result>=0?'positive':'negative'):'muted')+'">'+value+'</div>'+
-   '<div class="agent-rows"><div class="agent-row"><span>◉ Estado</span><strong>'+signal+'</strong></div>'+
+   '<div class="agent-rows"><div class="agent-row"><span>◉ Estado</span><strong>'+esc(signal)+'</strong></div>'+
    '<div class="agent-row"><span>✓ Realizado</span><strong>'+ (available?usd(realized):'—')+'</strong></div>'+
    '<div class="agent-row"><span>◷ Em aberto</span><strong>'+ (available?usd(unrealized):'—')+'</strong></div></div>'+
    '<span class="agent-footer">Valores da carteira virtual • Sem ordens reais</span></div></article>';
@@ -454,10 +456,18 @@ function renderPaper(p){
 }
 async function refreshPaper(){
  try{
-  const response=await fetch('/api/paper',{cache:'no-store'});
-  if(!response.ok)throw Error('HTTP '+response.status);
-  renderPaper(await response.json());
- }catch(e){renderPaper({ready:false,error:e.message});}
+  const [paperResult,diagResult]=await Promise.allSettled([
+   fetch('/api/paper',{cache:'no-store'}),
+   fetch('/api/agent-diagnostics',{cache:'no-store'})
+  ]);
+  latestAgentDiagnostics=null;
+  if(diagResult.status==='fulfilled'&&diagResult.value.ok){
+   const report=await diagResult.value.json();
+   if(Array.isArray(report.agents))latestAgentDiagnostics=report;
+  }
+  if(paperResult.status!=='fulfilled'||!paperResult.value.ok)throw Error('Carteira indisponível');
+  renderPaper(await paperResult.value.json());
+ }catch(e){latestAgentDiagnostics=null;renderPaper({ready:false,error:e.message});}
 }
 async function refreshRealMarket(){
  const grid=$('liveMarket'),stamp=$('marketUpdated'),button=$('refreshMarket');
