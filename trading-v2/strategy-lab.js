@@ -12,9 +12,10 @@ const fix=n=>Math.round((n+Number.EPSILON)*100)/100;
 
 // Single forward pass with the same EMA/RSI/ATR smoothing rules as engine.js.
 // Signals at index i depend ONLY on information through index i-1.
-function buildSignals(candles,cfg){
+function buildSignals(candles,cfg,filters){
  const signals=Array(candles.length).fill(null);
  let quick=0,slow=0,quickSum=0,slowSum=0,rsiGain=0,rsiLoss=0,atrValue=0,atrSum=0;
+ let positiveTrendBars=0;
  for(let i=0;i<candles.length;i++){
   const bar=candles[i],price=bar.close;
   if(i<cfg.fast)quickSum+=price;
@@ -32,9 +33,13 @@ function buildSignals(candles,cfg){
    if(i<=14){atrSum+=trueRange;if(i===14)atrValue=atrSum/14;}
    else atrValue=(atrValue*13+trueRange)/14;
   }
+  positiveTrendBars=quick>slow?positiveTrendBars+1:0;
   if(i<39||i+1>=candles.length)continue;
   const rsiStrength=rsiLoss===0?(rsiGain===0?50:100):100-100/(1+rsiGain/rsiLoss);
-  if(quick>slow&&rsiStrength>=cfg.rsiMin&&rsiStrength<=cfg.rsiMax&&Number.isFinite(atrValue))
+  const spreadPct=price>0?(quick-slow)/price*100:0;
+  const volatilityPct=price>0?atrValue/price*100:0;
+  if(quick>slow&&positiveTrendBars>=filters.minTrendBars&&spreadPct>=filters.minEmaSpreadPct&&
+    volatilityPct>=filters.minAtrPct&&rsiStrength>=cfg.rsiMin&&rsiStrength<=cfg.rsiMax&&Number.isFinite(atrValue))
    signals[i+1]={last:price,stopDistance:Math.max(atrValue*cfg.atrMultiplier,price*.002)};
  }
  return signals;
@@ -101,8 +106,13 @@ function runSegment(candles,from,to,cfg,signals,{feeRate=FEE_RATE,slippageRate=S
   maxDrawdownPct:fix(maxDrawdown)};
 }
 
-export function runStrategyLab(candles,{symbol='BTCUSDT',costModel={feeRate:FEE_RATE,slippageRate:SLIPPAGE_RATE}}={}){
+export function runStrategyLab(candles,{symbol='BTCUSDT',costModel={feeRate:FEE_RATE,slippageRate:SLIPPAGE_RATE},
+ entryFilters={minEmaSpreadPct:0,minAtrPct:0,minTrendBars:1}}={}){
  const {feeRate,slippageRate,cooldownBars=0}=costModel;
+ const {minEmaSpreadPct=0,minAtrPct=0,minTrendBars=1}=entryFilters||{};
+ if(!Number.isFinite(minEmaSpreadPct)||minEmaSpreadPct<0||minEmaSpreadPct>5||
+ !Number.isFinite(minAtrPct)||minAtrPct<0||minAtrPct>10||
+ !Number.isInteger(minTrendBars)||minTrendBars<1||minTrendBars>20)throw Error('Invalid research entry filter');
  if(!Number.isInteger(cooldownBars)||cooldownBars<0||cooldownBars>144)throw Error('Invalid research cooldown');
  if(!Number.isFinite(feeRate)||!Number.isFinite(slippageRate)||feeRate<0||feeRate>.01||slippageRate<0||slippageRate>.01)throw Error('Invalid research-only cost model');
  if(!Array.isArray(candles)||candles.length<180||candles.length>3500)throw Error('Research requires 180–3500 closed candles');
@@ -115,7 +125,7 @@ export function runStrategyLab(candles,{symbol='BTCUSDT',costModel={feeRate:FEE_
  }
  const split=Math.round(candles.length*.7);
  const candidates=LAB_CANDIDATES.map(candidate=>{
-  const signals=buildSignals(candles,candidate);
+  const signals=buildSignals(candles,candidate,{minEmaSpreadPct,minAtrPct,minTrendBars});
   const train=runSegment(candles,40,split,candidate,signals,costModel);
   const test=runSegment(candles,split,candles.length,candidate,signals,costModel);
   return {id:candidate.id,label:candidate.label,train,test,
@@ -128,6 +138,7 @@ export function runStrategyLab(candles,{symbol='BTCUSDT',costModel={feeRate:FEE_
   trainEndsAt:new Date(candles[split-1].closeTime).toISOString(),
   testStartsAt:new Date(candles[split].time??candles[split].closeTime-299999).toISOString(),
   testedParameters:LAB_CANDIDATES.length,feeRate,slippageRate,
+  entryFilters:{minEmaSpreadPct,minAtrPct,minTrendBars},
   executionAssumption:'next_candle_open;stop_first_if_ambiguous',
   notLiveFills:true,autoPromotionEnabled:false,orderExecutionEnabled:false,
   tradeStrategyChanged:false,candidates};
