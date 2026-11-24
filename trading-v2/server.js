@@ -41,6 +41,22 @@ async function startPaper(){
  catch(err){paperInitError=String(err.message||err).slice(0,180);console.error('Paper runner halted:',paperInitError);}
 }
 void startPaper();
+async function recordAdminAccess(outcome,route){
+ // Never store bearer credentials, IP addresses, user agents or portfolio contents.
+ console.info('ADMIN_REVIEW_ACCESS',JSON.stringify({at:new Date().toISOString(),outcome,route}));
+ if(!paperStore?.appendAdminReviewAccess)return false;
+ try{await paperStore.appendAdminReviewAccess({outcome,route});return true;}
+ catch(error){console.error('Admin access audit unavailable:',String(error.message||error).slice(0,120));return false;}
+}
+function refuseAdminAccess(req,res,{authorized,reason},recorded){
+ const status=!authorized?(reason==='NOT_CONFIGURED'?503:401):503;
+ res.writeHead(status,{'content-type':'application/json; charset=utf-8',
+  'cache-control':'no-store','x-content-type-options':'nosniff',
+  'referrer-policy':'no-referrer'});
+ return res.end(req.method==='HEAD'?undefined:JSON.stringify({
+  ok:false,code:!authorized?reason:'AUDIT_UNAVAILABLE',
+  message:'Revisão administrativa restrita; acesso indisponível'}));
+}
 const agents = [
 {id:'alpha',name:'ALPHA',symbol:'BTCUSDT',strategy:'EMA 9/21',simulatedPnl:0,status:'monitoring'},
 {id:'nova',name:'NOVA',symbol:'ETHUSDT',strategy:'RSI + ATR',simulatedPnl:0,status:'monitoring'},
@@ -530,20 +546,24 @@ else if(path==='/api/agents')data={ok:true,simulated:true,agents};
 else if(path==='/api/market')data={ok:true,dataSource:'synthetic',prices};
 else if(path==='/api/paper')data={ok:paperInitError===null, ...paper.status(),error:paperInitError};
 else if(path==='/api/agent-diagnostics')data=summarizePaperAgents({...paper.status(),ready:paperInitError===null&&paper.status().ready});
+else if(path==='/api/admin/audit-log'){
+ const access=authorizeReviewRequest(req.headers.authorization);
+ const recorded=await recordAdminAccess(access.reason,'audit-log');
+ if(!access.authorized||!recorded)return refuseAdminAccess(req,res,access,recorded);
+ try{
+  data={ok:true,mode:'PAPER_ONLY',readOnly:true,
+   events:await paperStore.listAdminReviewAccess({limit:50})};
+ }catch(error){
+  console.error('Admin audit history read failed:',String(error.message||error).slice(0,120));
+  data={ok:false,mode:'PAPER_ONLY',readOnly:true,error:'Histórico administrativo indisponível'};
+ }
+}
 else if(path==='/api/gap-reconciliation'||path==='/api/admin/gap-review'){
  const restricted=path==='/api/admin/gap-review';
  if(restricted){
   const access=authorizeReviewRequest(req.headers.authorization);
-  // Operational access trace only. Never log credentials, headers, IPs or portfolio contents.
-  console.info('ADMIN_REVIEW_ACCESS',JSON.stringify({at:new Date().toISOString(),outcome:access.reason,route:'gap-review'}));
-  if(!access.authorized){
-   const status=access.reason==='NOT_CONFIGURED'?503:401;
-   res.writeHead(status,{'content-type':'application/json; charset=utf-8',
-    'cache-control':'no-store','x-content-type-options':'nosniff',
-    'referrer-policy':'no-referrer'});
-   return res.end(req.method==='HEAD'?undefined:JSON.stringify({
-    ok:false,code:access.reason,message:'Revisão administrativa restrita; acesso indisponível'}));
-  }
+  const recorded=await recordAdminAccess(access.reason,'gap-review');
+  if(!access.authorized||!recorded)return refuseAdminAccess(req,res,access,recorded);
  }
  // Public audit is read-only; detailed administrative dossiers require server-side authorization.
  // Only fetch public OHLC for locked virtual positions; neither route mutates paper state.
