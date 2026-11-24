@@ -220,6 +220,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 .monitor-alerts-details{margin:12px 0;padding:11px;border:1px solid #32506a;border-radius:12px;background:#07182b}.monitor-alerts-details>summary{cursor:pointer;line-height:1.5;font-size:13px}.monitor-alerts-rows{max-height:300px;overflow-y:auto}.monitor-alert-event{padding:10px 3px;border-top:1px solid #29435c;display:grid;gap:6px;font-size:12px}.monitor-alert-event>div{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.monitor-alert-event small{font-size:11px;color:#9bb4c6}.monitor-alert-type{padding:3px 7px;border-radius:9px;font-size:11px;font-weight:700}.alert-recovered{color:#b3edce;background:#154334}.alert-problem{color:#ffd4ad;background:#58331e}
 .monitor-coverage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.monitor-coverage-card{padding:12px;border-radius:12px;border:1px solid #34516a;background:#091b30;min-width:0}.monitor-coverage-card strong,.monitor-coverage-card small{display:block;overflow-wrap:anywhere}.monitor-coverage-card small{font-size:11px;color:#a3bcd1;margin-top:7px}.monitor-coverage-value{font-size:23px;font-weight:800;margin:8px 0 6px}.monitor-coverage-bar{height:8px;border-radius:30px;background:#334559;overflow:hidden}.monitor-coverage-bar>div{height:100%;background:#45baaa;border-radius:30px;max-width:100%}@media(max-width:780px){.monitor-coverage-grid{grid-template-columns:minmax(0,1fr)}}
 .monitor-timeline-robot{padding:12px 0;border-top:1px solid #29435c}.monitor-timeline-track{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;margin:12px 0 5px;width:100%;min-width:0}.monitor-timeline-cell{height:29px;border-radius:3px;position:relative;min-width:0}.timeline-full{background:#2cb596}.timeline-partial{background:#bf9561}.timeline-unknown{background:#405268}.monitor-timeline-cell.has-incident{outline:2px solid #fa8c63;outline-offset:0}.timeline-alert-dot{position:absolute;top:-5px;right:-4px;border-radius:50%;height:8px;width:8px;background:#ff916b}.monitor-timeline-axis small{font-size:10px;color:#91a5bb}.monitor-timeline-legend{display:flex;gap:10px;flex-wrap:wrap;padding:8px 0 10px}.monitor-timeline-legend span{display:flex;align-items:center;gap:5px;font-size:10px;color:#9eb8ca}.monitor-timeline-legend i{display:inline-block;width:10px;height:10px;border-radius:2px}.monitor-timeline-legend .timeline-incident{background:#ff916b}@media(max-width:480px){.monitor-timeline-track{gap:2px}.monitor-timeline-cell{height:25px}}
+.risk-explain-market{margin:10px 0;padding:12px;border:1px solid #34516a;border-radius:12px;background:#091b30;min-width:0}.risk-explain-metrics{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.risk-explain-metrics span{font-size:11px;border:1px solid #324a65;padding:7px;border-radius:9px;color:#a9bfcb}.risk-explain-metrics b{color:#f0f8ff}.risk-explain-line{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;padding:8px 0;border-top:1px solid #273e55;font-size:12px;overflow-wrap:anywhere}.risk-explain-line strong{font-size:12px}@media(max-width:460px){.risk-explain-line{grid-template-columns:minmax(0,1fr)}}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Trading Agent V2">
@@ -282,6 +283,16 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 <section class="panel" style="margin-top:18px" aria-label="Avaliação de sinais dos agentes"><div class="between" style="flex-wrap:wrap;margin-bottom:12px"><div><div class="eyebrow">INTELIGÊNCIA OBSERVACIONAL / CANDLES DE 5 MIN</div><h2 style="margin:6px 0">Os sinais estavam corretos?</h2></div><button id="refreshSignals" type="button">Atualizar avaliação</button></div><p class="muted" style="font-size:12px">Compara a direção sugerida pelos indicadores com o fechamento do candle seguinte, quando ambos foram registrados. Não é taxa de acerto de operações nem previsão do mercado.</p><div class="performance-grid" id="signalMetrics"><div class="metric"><span>SINAIS AVALIADOS</span><strong>—</strong></div><div class="metric"><span>ACERTO DIRECIONAL</span><strong>—</strong></div><div class="metric"><span>SINAIS DE ESPERA</span><strong>—</strong></div><div class="metric"><span>AMOSTRA</span><strong>—</strong></div></div><div class="agent-metrics" id="signalAgentResults"></div><p class="performance-note" id="signalEvaluationNote">Aguardando dados do Supabase.</p></section>
 </div>
 <div id="view-estrategias" class="workspace-view" role="tabpanel" aria-labelledby="tab-estrategias" tabindex="0" data-view="estrategias" hidden><div class="workspace-view-intro"><span class="eyebrow">CENTRAL DE COMANDO / ESTRATÉGIAS</span><p>Laboratórios e testes históricos</p></div>
+<details class="panel future-study-panel" id="researchRiskPanel" style="margin-bottom:15px" aria-label="Análise explicável de risco e sinais">
+ <summary style="cursor:pointer;font-weight:800;font-size:16px">Diagnóstico das entradas e risco <small class="muted" style="font-weight:400">• somente pesquisa</small></summary>
+ <div class="between" style="flex-wrap:wrap;gap:9px;margin:13px 0">
+  <p class="muted" style="font-size:12px;max-width:650px;margin:0">Por que cada robô está esperando? Compare tendência, RSI, volatilidade, persistência e custo hipotético, sem alterar as regras congeladas nem enviar ordens.</p>
+  <button type="button" id="refreshResearchRisk">Analisar agora</button>
+ </div>
+ <p id="researchRiskStatus" class="muted" style="font-size:12px" aria-live="polite">Abrir para consultar os indicadores.</p>
+ <div id="researchRiskResults"></div>
+ <p class="performance-note">O preço de entrada é apenas uma aproximação pelo fechamento; stops e alvos futuros não são garantidos. Gaps podem causar perdas maiores do que o risco calculado.</p>
+</details>
 <div class="panel future-study-panel" aria-label="Operações completas experimentais" style="margin-bottom:15px">
  <div class="between" style="flex-wrap:wrap;margin-bottom:12px">
   <div><div class="eyebrow">OPERAÇÕES FUTURAS / SOMENTE PESQUISA</div><h2 style="margin:5px 0">Operações virtuais completas</h2></div>
@@ -546,6 +557,40 @@ async function refreshMonitorHealth(){
    (data.lastCollectorCheckAt?new Date(data.lastCollectorCheckAt).toLocaleString('pt-BR'):'não registrado');
  }catch(err){status.textContent='Falha ao verificar saúde dos dados: '+err.message;root.innerHTML='';}
  finally{button.disabled=false;}
+}
+async function refreshResearchRisk(){
+ const btn=$('refreshResearchRisk'),root=$('researchRiskResults'),status=$('researchRiskStatus');
+ btn.disabled=true;
+ try{
+  const response=await fetch('/api/research-risk',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const report=await response.json();
+  if(!report.ok)throw Error(report.error||'Diagnóstico indisponível');
+  const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const filters={reference:'Seletiva',trend_confirmed:'Tendência confirmada',volatility_screen:'Volatilidade ATR',combined:'Combinada'};
+  const reason={ema:'EMA9 abaixo da EMA21',rsi:'RSI fora de 55–65',trendPersistence:'Persistência de alta insuficiente',emaSpread:'Distância das médias insuficiente',atrVolatility:'Volatilidade abaixo do mínimo'};
+  const money=x=>Number(x).toLocaleString('pt-BR',{style:'currency',currency:'USD'});
+  const pct=x=>Number(x).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
+  status.textContent='Atualizado em '+new Date(report.generatedAt).toLocaleString('pt-BR')+' • '+report.successfulMarkets+'/3 mercados analisados';
+  root.innerHTML=(report.results||[]).map(r=>{
+   if(!r.ok)return '<div class="risk-explain-market"><strong>'+esc(names[r.symbol]||r.symbol)+'</strong><p class="muted">Dados indisponíveis para este mercado.</p></div>';
+   const indicators=r.indicators||{},risk=r.riskProxy||{};
+   return '<div class="risk-explain-market"><div class="between" style="gap:7px;flex-wrap:wrap"><strong>'+esc(names[r.symbol]||r.symbol)+'</strong><span class="history-pill">'+(r.dataFresh?'Candles atualizados':'Dados atrasados')+'</span></div>'+
+    '<div class="risk-explain-metrics"><span>RSI <b>'+Number(indicators.rsi14).toLocaleString('pt-BR')+'</b></span>'+
+    '<span>Spread EMA <b>'+pct(indicators.emaSpreadPercent)+'</b></span>'+
+    '<span>ATR <b>'+pct(indicators.atrPercent)+'</b></span>'+
+    '<span>Alta persistente <b>'+Number(indicators.bullishTrendBars)+' candles</b></span></div>'+
+    (r.scenarios||[]).map(x=>
+     '<div class="risk-explain-line"><strong>'+esc(filters[x.key]||x.key)+'</strong>'+
+     '<span class="'+(x.eligibleForResearch?'positive':'muted')+'">'+
+      (x.eligibleForResearch?'Critérios atendidos (sem ordem)':x.decision==='DATA_STALE'?'Dados desatualizados':'Aguardando: '+x.blockedBy.map(key=>reason[key]||key).join(', '))+
+     '</span></div>').join('')+
+    '<p class="muted" style="font-size:11px;margin:9px 0 0">Referência US$ 10.000 • Exposição máxima US$ 5.000 • Risco estimado US$ 100 • '+
+    'Stop teórico '+money(risk.indicativeStop)+' • Alvo teórico '+money(risk.indicativeTarget)+
+    ' • Perda no stop (com custos): '+(risk.estimatedStopPnLUsd===null?'—':money(risk.estimatedStopPnLUsd))+'</p></div>';
+  }).join('');
+ }catch(error){status.textContent='Análise indisponível: '+error.message;root.innerHTML='';}
+ finally{btn.disabled=false;}
 }
 async function refreshShadowTrades(){
  const status=$('shadowTradeStatus'),stats=$('shadowTradeStats'),markets=$('shadowTradeMarkets'),history=$('shadowTradeHistory'),button=$('refreshShadowTrades');
@@ -932,6 +977,8 @@ $('refreshCooldownResearch').addEventListener('click',refreshCooldownResearch);
 $('refreshEntryFilters').addEventListener('click',refreshEntryFilters);
 $('refreshForwardStudy').addEventListener('click',refreshForwardStudy);
 $('refreshShadowTrades').addEventListener('click',refreshShadowTrades);
+$('refreshResearchRisk').addEventListener('click',refreshResearchRisk);
+$('researchRiskPanel').addEventListener('toggle',()=>{if($('researchRiskPanel').open)void refreshResearchRisk();});
 $('refreshMonitorHealth').addEventListener('click',refreshMonitorHealth);
 $('refreshMonitorAlerts').addEventListener('click',refreshMonitorAlerts);
 $('refreshMonitorCoverage').addEventListener('click',refreshMonitorCoverage);
