@@ -39,17 +39,19 @@ function buildSignals(candles,cfg){
  }
  return signals;
 }
-function runSegment(candles,from,to,cfg,signals,{feeRate=FEE_RATE,slippageRate=SLIPPAGE_RATE}={}){
+function runSegment(candles,from,to,cfg,signals,{feeRate=FEE_RATE,slippageRate=SLIPPAGE_RATE,cooldownBars=0}={}){
  let cash=STARTING_CASH,position=null,peak=STARTING_CASH,maxDrawdown=0;
  let wins=0,losses=0,profit=0,loss=0,closed=0,entries=0;
+ let lastExitIndex=-1000000,cooldownSkippedSignals=0;
  const equityAt=price=>cash+(position?position.qty*price:0);
- function exit(fillPrice){
+ function exit(fillPrice,candleIndex){
   const proceeds=position.qty*fillPrice;
   const pnl=proceeds-proceeds*feeRate-position.cost;
   cash+=proceeds*(1-feeRate);
   closed++;
   if(pnl>0){wins++;profit+=pnl;}else if(pnl<0){losses++;loss+=-pnl;}
   position=null;
+  lastExitIndex=candleIndex;
  }
  for(let i=from;i<to;i++){
   const bar=candles[i];
@@ -59,11 +61,12 @@ function runSegment(candles,from,to,cfg,signals,{feeRate=FEE_RATE,slippageRate=S
     if(stopHit||targetHit){
       // Conservative when stop and target are touched in the same candle: stop wins.
       const base=stopHit?Math.min(position.stop,bar.open):position.target;
-      exit(base*(1-slippageRate));
+      exit(base*(1-slippageRate),i);
     }
   } else {
     const signal=signals[i];
     if(signal){
+      if(i-lastExitIndex<=cooldownBars){cooldownSkippedSignals++;continue;}
       const entry=bar.open*(1+slippageRate);
       const stop=signal.last-signal.stopDistance;
       const stopDistance=entry-stop;
@@ -79,7 +82,7 @@ function runSegment(candles,from,to,cfg,signals,{feeRate=FEE_RATE,slippageRate=S
         const stopHit=bar.low<=stop,targetHit=bar.high>=position.target;
         if(stopHit||targetHit){
           const base=stopHit?Math.min(stop,bar.open):position.target;
-          exit(base*(1-SLIPPAGE_RATE));
+          exit(base*(1-slippageRate),i);
         }
        }
       }
@@ -89,17 +92,18 @@ function runSegment(candles,from,to,cfg,signals,{feeRate=FEE_RATE,slippageRate=S
   peak=Math.max(peak,marked);
   maxDrawdown=Math.max(maxDrawdown,peak>0?(peak-marked)/peak*100:0);
  }
- if(position)exit(candles[to-1].close*(1-slippageRate)); // Forced segment-end close, including fees.
+ if(position)exit(candles[to-1].close*(1-slippageRate),to-1); // Forced segment-end close, including fees.
  const net=cash-STARTING_CASH;
  return {startingCash:STARTING_CASH,endingCash:fix(cash),netPnl:fix(net),
-  returnPct:fix(net/STARTING_CASH*100),closedTrades:closed,entries,
+  returnPct:fix(net/STARTING_CASH*100),closedTrades:closed,entries,cooldownSkippedSignals,
   winRate:closed?fix(100*wins/closed):null,avgWin:wins?fix(profit/wins):null,
   avgLoss:losses?fix(loss/losses):null,profitFactor:loss>0?fix(profit/loss):null,
   maxDrawdownPct:fix(maxDrawdown)};
 }
 
 export function runStrategyLab(candles,{symbol='BTCUSDT',costModel={feeRate:FEE_RATE,slippageRate:SLIPPAGE_RATE}}={}){
- const {feeRate,slippageRate}=costModel;
+ const {feeRate,slippageRate,cooldownBars=0}=costModel;
+ if(!Number.isInteger(cooldownBars)||cooldownBars<0||cooldownBars>144)throw Error('Invalid research cooldown');
  if(!Number.isFinite(feeRate)||!Number.isFinite(slippageRate)||feeRate<0||feeRate>.01||slippageRate<0||slippageRate>.01)throw Error('Invalid research-only cost model');
  if(!Array.isArray(candles)||candles.length<180||candles.length>3500)throw Error('Research requires 180–3500 closed candles');
  for(let i=0;i<candles.length;i++){
