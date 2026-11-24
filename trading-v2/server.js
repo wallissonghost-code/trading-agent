@@ -14,6 +14,7 @@ import { compareEntryFilters } from './entry-filter-research.js';
 import { buildForwardObservation, summarizeForwardStudy, verifyFrozenForwardConfig, buildShadowObservation, verifyShadowStudy, summarizeShadowTrades } from './forward-study.js';
 import { summarizeMonitoring } from './monitor-health.js';
 import { reviewShadowStops } from './stop-review.js';
+import { comparePreSignalHypotheses } from './hypothesis-screen.js';
 import { explainResearchRisk } from './research-risk.js';
 import { summarizeObservedCoverage, buildObservedTimeline } from './monitor-coverage.js';
 import { auditWalkForwardReports } from './research-audit.js';
@@ -403,6 +404,23 @@ async function getMonitoringHealth(){
    error:'Falha ao consultar última coleta',orderExecutionEnabled:false};
  }
 }
+async function getHypothesisReport(){
+ if(!paperStore?.listShadowTrades||!paperStore?.listStopReviewObservations)
+  return {ok:false,mode:'EXPLORATORY_PRE_SIGNAL_SCREENS',error:'Pesquisa privada indisponível'};
+ try{
+  const [trades,observations]=await Promise.all([
+   paperStore.listShadowTrades({limit:500}),
+   paperStore.listStopReviewObservations({limit:600})
+  ]);
+  return comparePreSignalHypotheses({trades,observations,
+   partialTrades:trades.length>=500,partialObservations:observations.length>=600});
+ }catch(error){
+  console.error('Exploratory screen report unavailable:',String(error.message||error).slice(0,130));
+  return {ok:false,mode:'EXPLORATORY_PRE_SIGNAL_SCREENS',
+   error:'Estudo exploratório temporariamente indisponível',
+   realOrdersEnabled:false,autoPromotionEnabled:false};
+ }
+}
 async function getStopReviewReport(){
  if(!paperStore?.listShadowTrades||!paperStore?.listStopReviewObservations)
   return {ok:false,mode:'FROZEN_SHADOW_STOP_AUDIT',error:'Pesquisa privada indisponível'};
@@ -477,6 +495,7 @@ else if(path==='/api/monitor-timeline')data=await getMonitoringTimeline();
 else if(path==='/api/monitor-coverage')data=await getMonitoringCoverage();
 else if(path==='/api/monitor-alerts')data=await getMonitoringAlerts();
 else if(path==='/api/monitor-health')data=await getMonitoringHealth();
+else if(path==='/api/hypothesis-screen')data=await getHypothesisReport();
 else if(path==='/api/stop-review')data=await getStopReviewReport();
 else if(path==='/api/shadow-trades')data=await getShadowTradeReport();
 else if(path==='/api/forward-study')data=await getForwardSnapshot();
