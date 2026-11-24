@@ -178,3 +178,17 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 - O commit `9eaba4d` com documentação também foi publicado como **live** em `2026-11-24T16:41:25Z` e seu workflow CI terminou com sucesso.
 - A última atualização exclusivamente documental não muda decisões, risco ou estratégias. Sua publicação pode estar em andamento durante a gravação deste registro.
 - Observação: o progresso após o deploy confirma uma retomada pontual, **não 24/7**. O plano Render free pode suspender o processo novamente após inatividade.
+
+
+## 13. Diagnóstico do NOVA por exposição — 2026-11-24
+
+**Observação confirmada no Supabase** em `2026-11-24T19:17:59Z`: último estado paper persistido `2026-11-24T17:55:44Z`, atraso 82,3 minutos. Última decisão ETHUSDT/NOVA: `WAIT`, `CAPITAL_OR_RISK_LIMIT`, EMA9 1680,64 > EMA21 1678,86, RSI14 52,45, posição ETH ausente. Havia posição BTC aberta com notional de entrada ~US$ 4.917, próxima/acima do limite de exposição máximo de 50% do patrimônio paper; não havia folga para uma compra ETH de US$ 10. Portanto, para essa decisão o motivo específico foi **limite de exposição**, não um erro técnico, nem falta de sinal. Não abrir posição só para melhorar estatísticas.
+
+**Implementado sem mudar execução ou regras de risco**:
+- `79cf99b`: exporta classificador informativo `classifyPaperEntryBlock` e salva gates `portfolioExposureAvailable` e `exposureRemainingUsdt` para novas decisões.
+- `bb6562c`: traduz `PORTFOLIO_EXPOSURE_LIMIT` no diagnóstico por robô.
+- `b6fd5fd`: mostra razão específica e gate de exposição na interface, com `Não avaliada` para decisões históricas anteriores à implementação.
+- `164e2f0`: teste para evitar confundir bloqueio de exposição com orçamento geral e confirmar que o classificador não cria ordens.
+- A suíte de testes e o deploy mais recentes devem ser conferidos antes de declarar a atualização em produção.
+
+**Limitação operacional**: serviço web Render plano gratuito pode suspender, causando lacunas de candles. Não afirmar disponibilidade 24h; não habilitar trading real nem contratar serviços. 
