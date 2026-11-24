@@ -267,3 +267,23 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 **Testes verificados:** GitHub Actions run `45491492524` no commit `0b5514e` passou **165/165 testes, 0 falhas e 0 ignorados**, incluindo validação de sintaxe. Link https://github.com/wallissonghost-code/trading-agent/actions/runs/45491492524. Verificar novamente a última publicação no Render, pois `60099e3` é posterior (somente documentação).
 
 **Segurança:** nenhuma opção de aprovação/POST de desbloqueio existe, e nenhuma alteração foi feita nas posições reais ou virtuais do banco. A autorização para projeto/trabalho não é autorização para liquidar uma posição em quarentena com premissas de execução não verificáveis. Uma futura mutação exige autenticação administrativa real, confirmação caso a caso, hash de estado conferido e ledger append-only transacional.
+
+
+## 18. Isolamento e autenticação da revisão administrativa — 24/11/2026
+
+**Diagnóstico de segurança:** a rota pública `GET /api/gap-reconciliation` incluía `administrativeReview`, com detalhes de posição, evidências e hashes que pertencem ao fluxo restrito. Foi removido esse acoplamento: o relatório público agora contém apenas o resultado read-only da auditoria de candles.
+
+**Implementação**
+- `trading-v2/admin-access.js`, commit `ab5db91`: verificação de `Authorization: Bearer` com comparação de digest SHA-256 em tempo constante. Sem `ADMIN_REVIEW_TOKEN` de pelo menos 32 caracteres, acesso indisponível (fail-closed). Nunca registra ou retorna token.
+- `trading-v2/admin-access.test.js`, commit `10c8a18`: credencial correta/incorreta, ausência de configuração e não divulgação.
+- `trading-v2/server.js`, commit `9bfda91`: separa `/api/gap-reconciliation` (público, sem dossier administrativo) de `GET /api/admin/gap-review` (restrito). Responde HTTP 503 sem configuração ou HTTP 401 com token inválido; método POST continua 405. Nenhum método altera posição, ledger ou `gapLocks`.
+- `trading-v2/index.html`, commit `a3f6369`: painel público não mostra mais `caseId` nem `evidenceSha256`; apenas indica que o dossiê detalhado é restrito.
+- `trading-v2/server.js`, commit `6d6c8fd`: log de acesso administrativo com horário, rota e status de autorização; sem credencial, IP, cabeçalhos ou dados privados. **Esse log operacional Render não é ledger append-only durável**.
+- Testes ajustados `b28eaf7`, `e92f5c3`, `70f3111`: reforçam o isolamento público/restrito e autenticação HTTP. Falhas intermediárias do CI ocorreram porque testes antigos ainda esperavam `administrativeReview` na API pública. Corrigidos e suite aprovada.
+- `trading-v2/README.md`, commit `f235be3`: documenta variável `ADMIN_REVIEW_TOKEN`, regras, acesso sem custo e limite da auditoria atual.
+
+**Evidência de testes:** GitHub Actions run `45493482992` no commit `70f3111`: **169 testes, 169 aprovados, 0 falhas/ignorados**. Link: https://github.com/wallissonghost-code/trading-agent/actions/runs/45493482992.
+
+**Segurança operacional:** não foi gerada credencial administrativa nem definida `ADMIN_REVIEW_TOKEN` no Render. Por padrão, a rota de administração permanece indisponível; não publicar o segredo no frontend/GitHub/URLs. Para uso futuro, gerar segredo forte e instalar somente no servidor, preferencialmente com autenticação multiusuário e auditoria durável. Não há desbloqueio, liquidação, ordens reais ou autorização financeira.
+
+**Verificação de deploy:** checar o commit de produção mais recente após essas alterações. O CI da versão testada passou; resultado de deploy deve ser reportado separadamente.
