@@ -437,7 +437,10 @@ function renderPaper(p){
   return;
  }
  renderAgentPaperDecisions(p);
- $('mode').textContent=p.storageError?'GRAVAÇÃO INDISPONÍVEL':'PAPER ONLINE';
+ const healthStates=latestAgentDiagnostics?.agents?.map(a=>a.state)||[];
+ const feedFault=healthStates.some(state=>state==='ERRO');
+ const feedStale=healthStates.some(state=>state==='COLETA_ATRASADA'||state==='SEM_DADOS');
+ $('mode').textContent=p.storageError||feedFault?'PAPER COM FALHAS':feedStale?'COLETA ATRASADA':healthStates.length===3?'PAPER ONLINE':'STATUS NÃO VERIFICADO';
  const total=Number(p.equity)-Number(p.startingCash||10000);
  $('capital').textContent=usd(p.equity);
  $('pnl').textContent=signed(total);
