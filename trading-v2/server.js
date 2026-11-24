@@ -11,7 +11,7 @@ import { runWalkForward } from './walk-forward.js';
 import { diagnoseStrategyLosses } from './loss-diagnostics.js';
 import { compareCooldowns } from './cooldown-research.js';
 import { compareEntryFilters } from './entry-filter-research.js';
-import { buildForwardObservation, summarizeForwardStudy, verifyFrozenForwardConfig } from './forward-study.js';
+import { buildForwardObservation, summarizeForwardStudy, verifyFrozenForwardConfig, buildShadowObservation, verifyShadowStudy, summarizeShadowTrades } from './forward-study.js';
 import { auditWalkForwardReports } from './research-audit.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
 import { evaluateHeadlineImpact, summarizeHeadlineImpacts } from './news-impact.js';
@@ -216,7 +216,7 @@ function getNewsImpactStatus(){
 // Frozen prospective research: one latest closed candle per market, collected ONLY after
 // the freeze timestamp. DB scores a signal only from its first full future candle.
 // Never call the paper execution engine or Binance order endpoints from this worker.
-let forwardConfig=null,forwardCollectionPromise=null,forwardLastRun=0;
+let forwardConfig=null,shadowConfig=null,forwardCollectionPromise=null,forwardLastRun=0;
 let forwardCaptureState={lastCheckedAt:null,newObservations:0,sources:[],error:null};
 async function runForwardCapture(){
  if(!paperStore?.getFrozenForwardStudy||!paperStore?.insertForwardObservation)
@@ -230,13 +230,26 @@ async function runForwardCapture(){
    verifyFrozenForwardConfig(frozen);
    forwardConfig=frozen;
   }
+  if(!shadowConfig&&paperStore?.getFrozenShadowStudy){
+   const frozen=await paperStore.getFrozenShadowStudy();
+   verifyShadowStudy(frozen);
+   shadowConfig=frozen;
+  }
   const captured=await Promise.all(SYMBOLS.map(async symbol=>{
    try{
     const market=await getKlines(symbol,{limit:100});
     const snapshot=buildForwardObservation(market.candles,{symbol,studyStartedAt:forwardConfig.started_at});
     if(snapshot.status!=='ready')return {symbol,status:snapshot.status};
     const inserted=await paperStore.insertForwardObservation(snapshot);
-    return {symbol,status:inserted?'recorded':'already_recorded'};
+    let shadowStatus='not_configured';
+    if(shadowConfig&&paperStore?.insertShadowObservation){
+     const parallel=buildShadowObservation(market.candles,{symbol,studyStartedAt:shadowConfig.started_at});
+     if(parallel.status==='ready'){
+       const stored=await paperStore.insertShadowObservation(parallel);
+       shadowStatus=stored?'recorded':'already_recorded';
+     }else shadowStatus=parallel.status;
+    }
+    return {symbol,status:inserted?'recorded':'already_recorded',shadowStatus};
    }catch(err){
     console.error('Prospective study:',symbol,String(err.message||err).slice(0,150));
     return {symbol,status:'error'};
@@ -277,6 +290,26 @@ async function getForwardSnapshot(){
    autoPromotionEnabled:false,realOrdersEnabled:false};
  }
 }
+async function getShadowTradeReport(){
+ if(!paperStore?.getFrozenShadowStudy||!paperStore?.listShadowTrades)
+  return {ok:false,mode:'FROZEN_PROSPECTIVE_SHADOW_TRADES',error:'Supabase não configurado'};
+ // Collect recent public candles without blocking requests for a report.
+ void runForwardCapture();
+ try{
+  if(!shadowConfig){
+   const frozen=await paperStore.getFrozenShadowStudy();
+   verifyShadowStudy(frozen);
+   shadowConfig=frozen;
+  }
+  const trades=await paperStore.listShadowTrades({limit:500});
+  return summarizeShadowTrades({study:shadowConfig,trades});
+ }catch(error){
+  console.error('Prospective full trades read error:',String(error.message||error).slice(0,140));
+  return {ok:false,mode:'FROZEN_PROSPECTIVE_SHADOW_TRADES',
+   error:'Ainda não foi possível consultar operações experimentais',
+   orderExecutionEnabled:false,autoPromotionEnabled:false};
+ }
+}
 const server=http.createServer(async(req,res)=>{
 const path=new URL(req.url||'/', 'http://localhost').pathname;
 if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'allow':'GET, HEAD'});return res.end();}
@@ -306,6 +339,7 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
+else if(path==='/api/shadow-trades')data=await getShadowTradeReport();
 else if(path==='/api/forward-study')data=await getForwardSnapshot();
 else if(path==='/api/entry-filter-research'){
   try{
