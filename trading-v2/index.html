@@ -221,6 +221,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 .monitor-coverage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.monitor-coverage-card{padding:12px;border-radius:12px;border:1px solid #34516a;background:#091b30;min-width:0}.monitor-coverage-card strong,.monitor-coverage-card small{display:block;overflow-wrap:anywhere}.monitor-coverage-card small{font-size:11px;color:#a3bcd1;margin-top:7px}.monitor-coverage-value{font-size:23px;font-weight:800;margin:8px 0 6px}.monitor-coverage-bar{height:8px;border-radius:30px;background:#334559;overflow:hidden}.monitor-coverage-bar>div{height:100%;background:#45baaa;border-radius:30px;max-width:100%}@media(max-width:780px){.monitor-coverage-grid{grid-template-columns:minmax(0,1fr)}}
 .monitor-timeline-robot{padding:12px 0;border-top:1px solid #29435c}.monitor-timeline-track{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;margin:12px 0 5px;width:100%;min-width:0}.monitor-timeline-cell{height:29px;border-radius:3px;position:relative;min-width:0}.timeline-full{background:#2cb596}.timeline-partial{background:#bf9561}.timeline-unknown{background:#405268}.monitor-timeline-cell.has-incident{outline:2px solid #fa8c63;outline-offset:0}.timeline-alert-dot{position:absolute;top:-5px;right:-4px;border-radius:50%;height:8px;width:8px;background:#ff916b}.monitor-timeline-axis small{font-size:10px;color:#91a5bb}.monitor-timeline-legend{display:flex;gap:10px;flex-wrap:wrap;padding:8px 0 10px}.monitor-timeline-legend span{display:flex;align-items:center;gap:5px;font-size:10px;color:#9eb8ca}.monitor-timeline-legend i{display:inline-block;width:10px;height:10px;border-radius:2px}.monitor-timeline-legend .timeline-incident{background:#ff916b}@media(max-width:480px){.monitor-timeline-track{gap:2px}.monitor-timeline-cell{height:25px}}
 .risk-explain-market{margin:10px 0;padding:12px;border:1px solid #34516a;border-radius:12px;background:#091b30;min-width:0}.risk-explain-metrics{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.risk-explain-metrics span{font-size:11px;border:1px solid #324a65;padding:7px;border-radius:9px;color:#a9bfcb}.risk-explain-metrics b{color:#f0f8ff}.risk-explain-line{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;padding:8px 0;border-top:1px solid #273e55;font-size:12px;overflow-wrap:anywhere}.risk-explain-line strong{font-size:12px}@media(max-width:460px){.risk-explain-line{grid-template-columns:minmax(0,1fr)}}
+.paper-agent-decisions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.paper-agent-decision{padding:12px;border:1px solid #35536a;border-radius:12px;background:#081b30;min-width:0}.paper-agent-decision small{display:block;font-size:11px;line-height:1.5;margin-top:10px}.paper-agent-gates{display:grid;gap:5px}.paper-agent-gates>span{font-size:11px;color:#a9c2d4;overflow-wrap:anywhere}@media(max-width:790px){.paper-agent-decisions{grid-template-columns:minmax(0,1fr)}}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Trading Agent V2">
@@ -273,7 +274,11 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 <section class="metrics" aria-label="Indicadores simulados"><div class="metric"><span>CAPITAL SIMULADO</span><strong id="capital">$ 10.000,00</strong></div><div class="metric"><span>RESULTADO TOTAL SIMULADO</span><strong id="pnl" class="positive">+$ 0,00</strong></div><div class="metric"><span>ROBÔS EM MONITORAMENTO</span><strong>03</strong></div><div class="metric"><span>ORDENS REAIS</span><strong>0</strong></div></section>
 <section class="room"><div class="room-top"><div><div class="eyebrow">Operations Floor / Virtual Office</div><h2 style="margin:6px 0">Mesa dos robôs</h2><p>P&L individual calculado pelas operações da carteira virtual</p></div><span class="pill" id="mode">PARADO</span></div><div class="office" id="office"></div></section>
 <section class="panel" style="margin-top:18px"><div class="between" style="margin-bottom:12px"><div><div class="eyebrow">Binance Spot / 5 minutos</div><h2 style="margin:6px 0">Leitura do mercado real</h2></div><button id="refreshMarket" type="button">Atualizar cotações</button></div><p class="muted" style="font-size:12px">Apenas dados públicos e candles fechados. Nenhuma compra, venda ou operação foi executada.</p><div class="metrics" id="liveMarket" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="metric">BTC/USDT<br><small>Carregando...</small></div><div class="metric">ETH/USDT<br><small>Carregando...</small></div><div class="metric">SOL/USDT<br><small>Carregando...</small></div></div><div id="marketUpdated" class="muted" style="font-size:12px"></div></section>
-<section class="panel" style="margin-top:18px"><div class="between"><div><div class="eyebrow">PAPER TRADING / USDT FICTÍCIO</div><h2 style="margin:6px 0">Carteira dos agentes</h2></div><span class="pill">SEM ORDENS REAIS</span></div><p class="muted" style="font-size:12px">Simulação automática sobre candles públicos de 5 minutos. Preenchimentos fictícios: não equivalem a preços executáveis na corretora. A persistência é indicada abaixo; armazenamento local no Render gratuito é temporário.</p><div class="metrics" id="paperMetrics" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="metric"><span>PATRIMÔNIO VIRTUAL</span><strong>Carregando</strong></div></div><div id="paperHoldings" class="log"></div><div id="paperNote" class="muted" style="font-size:12px;margin-top:10px"></div></section>
+<section class="panel" style="margin-top:18px"><div class="between"><div><div class="eyebrow">PAPER TRADING / USDT FICTÍCIO</div><h2 style="margin:6px 0">Carteira dos agentes</h2></div><span class="pill">SEM ORDENS REAIS</span></div><p class="muted" style="font-size:12px">Simulação automática sobre candles públicos de 5 minutos. Preenchimentos fictícios: não equivalem a preços executáveis na corretora. A persistência é indicada abaixo; armazenamento local no Render gratuito é temporário.</p><div class="metrics" id="paperMetrics" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="metric"><span>PATRIMÔNIO VIRTUAL</span><strong>Carregando</strong></div></div><div id="paperHoldings" class="log"></div><details class="monitor-alerts-details" id="paperAgentDecisionPanel">
+ <summary><strong>Por que cada robô está aguardando?</strong> <span class="muted">• última decisão individual</span></summary>
+ <p class="muted" style="font-size:12px;margin:10px 0">Diagnóstico do motor principal de carteira virtual. Diferente dos filtros experimentais da aba Estratégias.</p>
+ <div id="paperAgentDecisions" class="paper-agent-decisions"><p class="muted">Aguardando decisões individuais dos próximos candles.</p></div>
+</details><div id="paperNote" class="muted" style="font-size:12px;margin-top:10px"></div></section>
 <section class="bottom"><div class="panel"><h2>Atividade dos agentes</h2><div class="log" id="activity"><div><span>Motor demonstrativo pronto</span><span class="muted">Aguardando início</span></div></div></div><div class="panel"><h2>Parâmetros de simulação</h2><div class="log"><div><span>Mercado</span><strong>Binance Spot pública (somente leitura)</strong></div><div><span>Risco máximo por operação</span><strong>1% (dimensionamento aproximado)</strong></div><div><span>Execução real</span><strong class="muted">Desativada</strong></div><div><span>Conexão com a corretora</span><strong class="muted">Não configurada</strong></div></div></div></section>
 </div>
 <div id="view-operacoes" class="workspace-view" role="tabpanel" aria-labelledby="tab-operacoes" tabindex="0" data-view="operacoes" hidden><div class="workspace-view-intro"><span class="eyebrow">CENTRAL DE COMANDO / OPERAÇÕES</span><p>Histórico, desempenho e decisões</p></div>
@@ -362,6 +367,30 @@ function renderRobots(p){
    '<span class="agent-footer">Valores da carteira virtual • Sem ordens reais</span></div></article>';
  }).join('');
 }
+function renderAgentPaperDecisions(p){
+ const root=$('paperAgentDecisions'),names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+ const reason={EMA_TREND_NOT_BULLISH:'EMA9 não está acima da EMA21',RSI_OUTSIDE_BUY_RANGE:'RSI fora da faixa de compra (50–70)',
+  MAX_OPEN_POSITIONS:'Limite de 2 posições virtuais abertas',CAPITAL_OR_RISK_LIMIT:'Capital ou orçamento de risco insuficiente',
+  PORTFOLIO_DRAWDOWN_LOCK:'Carteira atingiu bloqueio por queda de 5%',POSITION_OPEN:'Posição virtual já aberta',
+  EMA_RSI_WATCH_LONG:'Entrada virtual efetuada',STOP_LOSS:'Saída simulada por stop',TAKE_PROFIT:'Saída simulada no alvo',NO_NEW_ENTRY:'Nenhuma nova entrada'};
+ const decisions=p?.lastDecisions||{};
+ root.innerHTML=Object.keys(names).map(symbol=>{
+  const d=decisions[symbol],err=p?.lastError?.[symbol],last=p?.lastCandle?.[symbol];
+  if(!d)return '<div class="paper-agent-decision"><strong>'+esc(names[symbol])+'</strong><p class="muted">Sem decisão individual persistida. Aguardando o próximo candle processado.'+
+    (err?' • Falha de leitura: '+esc(err):'')+'</p></div>';
+  const date=Number(d.candleCloseTime),time=Number.isFinite(date)?new Date(date).toLocaleString('pt-BR'):'—';
+  const gates=d.entryGates||{};
+  return '<div class="paper-agent-decision"><div class="between" style="flex-wrap:wrap;gap:8px"><strong>'+esc(names[symbol])+'</strong>'+
+   '<span class="history-pill">'+esc(d.action==='BUY'?'COMPRA VIRTUAL':d.action==='SELL'?'VENDA VIRTUAL':'AGUARDANDO')+'</span></div>'+
+   '<p style="font-size:12px;margin:8px 0">'+esc(reason[d.reason]||d.reason||'Sem explicação')+'</p>'+
+   '<div class="paper-agent-gates"><span>Tendência EMA: '+(gates.emaBullish===true?'Alta confirmada':gates.emaBullish===false?'Alta não confirmada':'—')+'</span>'+
+   '<span>RSI de compra: '+(gates.rsiInBuyRange===true?'Dentro da faixa':gates.rsiInBuyRange===false?'Fora da faixa':'—')+'</span>'+
+   '<span>Limite de posições: '+(gates.positionSlotsAvailable===true?'Disponível':gates.positionSlotsAvailable===false?'Atingido':'—')+'</span></div>'+
+   '<small class="muted">RSI: '+(Number.isFinite(d.rsi14)?Number(d.rsi14).toLocaleString('pt-BR',{maximumFractionDigits:2}):'—')+
+   ' • Candle: '+time+' • Registro simulado</small>'+
+   (err?'<p class="health-error">Falha de coleta: '+esc(err)+'</p>':'')+'</div>';
+ }).join('');
+}
 function renderPaper(p){
  previousPaper=p;
  renderRobots(p);
@@ -369,8 +398,10 @@ function renderPaper(p){
   $('mode').textContent='CARTEIRA INDISPONÍVEL';
   $('paperNote').textContent='Não foi possível carregar a carteira simulada: '+String(p?.storageError||p?.error||'Aguardando inicialização');
   $('pnl').textContent='—';$('capital').textContent='—';
+  renderAgentPaperDecisions(p);
   return;
  }
+ renderAgentPaperDecisions(p);
  $('mode').textContent=p.storageError?'GRAVAÇÃO INDISPONÍVEL':'PAPER ONLINE';
  const total=Number(p.equity)-Number(p.startingCash||10000);
  $('capital').textContent=usd(p.equity);
