@@ -8,6 +8,7 @@ import { summarizeSignalOutcomes } from './signal-evaluation.js';
 import { runStrategyLab } from './strategy-lab.js';
 import { getMultiweekHistory } from './historical-market.js';
 import { runWalkForward } from './walk-forward.js';
+import { fetchNewsHeadlines } from './news-monitor.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -71,7 +72,25 @@ async function getStrategyLabReport(){
 // Return immediately to mobile clients; data collection continues in the Node service.
 let forwardStudy={status:'idle',generatedAt:null,startedAt:null,completed:0,total:SYMBOLS.length,results:[]};
 let forwardStudyStartedAt=0;
-function getForwardStudy(){
+let forwardRestoreAttempted=false;
+async function getForwardStudy(){
+ if(!forwardRestoreAttempted && paperStore?.listResearchReports){
+  forwardRestoreAttempted=true;
+  try{
+   const saved=await paperStore.listResearchReports({limit:12});
+   const latest=new Map();
+   for(const row of saved){const item=row?.report;if(item?.ok && SYMBOLS.includes(item.symbol) && !latest.has(item.symbol))latest.set(item.symbol,item);}
+   if(latest.size===SYMBOLS.length && saved[0]?.completed_at){
+    const timestamp=Date.parse(saved[0].completed_at);
+    if(Number.isFinite(timestamp)&&Date.now()-timestamp<30*60*1000){
+     forwardStudyStartedAt=timestamp;
+     forwardStudy={status:'ready',startedAt:saved[0].completed_at,generatedAt:saved[0].completed_at,
+       completed:SYMBOLS.length,total:SYMBOLS.length,results:SYMBOLS.map(symbol=>latest.get(symbol))};
+    }
+   }
+  }catch(err){console.error('Research restore unavailable:',String(err.message||err).slice(0,120));}
+ }
+
  const stamp=Date.now();
  const age=stamp-forwardStudyStartedAt;
  const shouldStart=forwardStudy.status==='idle'||
@@ -85,7 +104,13 @@ function getForwardStudy(){
    try{
     const history=await getMultiweekHistory(symbol);
     const report=runWalkForward(history.candles,{symbol});
-    return {ok:true,...report,source:history.source,from:history.from,to:history.to,pages:history.pages};
+    const result={ok:true,...report,source:history.source,from:history.from,to:history.to,pages:history.pages,
+       persisted:false};
+    if(paperStore?.saveResearchReport){
+      try{await paperStore.saveResearchReport(result);result.persisted=true;}
+      catch(error){console.error('Research persistence failed:',symbol,String(error.message||error).slice(0,120));result.persistenceError=true;}
+    }
+    return result;
    }catch(e){
     console.error('Walk-forward historical study:',symbol,String(e.message||e).slice(0,140));
     return {ok:false,symbol,error:'Histórico completo indisponível ou com intervalo faltante'};
@@ -101,7 +126,40 @@ function getForwardStudy(){
  }
  return {ok:forwardStudy.status!=='error',mode:'RESEARCH_ONLY',
   autoPromotionEnabled:false,orderExecutionEnabled:false,newsTradingEnabled:false,
-  historicalPersistence:'memory_cache_only',...forwardStudy};
+  historicalPersistence:forwardStudy.results.some(x=>x?.persisted)?'supabase_partial_or_full':'memory_only',...forwardStudy};
+}
+// News is observational, rate limited and never consulted by execution rules.
+let newsCache={status:'idle',news:[],sourceStatus:[],persisted:false,fetchedAt:null};
+let newsRefreshAt=0,newsPromise=null;
+async function getNewsResearch(){
+ if(newsPromise)return newsPromise;
+ if(newsCache.status==='ready'&&Date.now()-newsRefreshAt<10*60*1000)return {
+   ok:true,mode:'NEWS_RESEARCH_ONLY',newsTradingEnabled:false,...newsCache};
+ newsPromise=(async()=>{
+  try{
+   const feed=await fetchNewsHeadlines();
+   let news=feed.news,persisted=false;
+   if(paperStore?.saveNews && news.length){
+    try{await paperStore.saveNews(news);persisted=true;}
+    catch(err){console.error('News archive write error:',String(err.message||err).slice(0,110));}
+   }
+   if(paperStore?.listNews){
+    try{
+     const saved=await paperStore.listNews({limit:30});
+     if(saved.length)news=saved;
+    }catch(err){console.error('News archive read unavailable:',String(err.message||err).slice(0,110));}
+   }
+   newsCache={status:'ready',news,sourceStatus:feed.sourceStatus,persisted,fetchedAt:feed.fetchedAt};
+   newsRefreshAt=Date.now();
+   return {ok:true,mode:'NEWS_RESEARCH_ONLY',newsTradingEnabled:false,...newsCache};
+  }catch(err){
+   console.error('News monitor error:',String(err.message||err).slice(0,110));
+   return {ok:false,mode:'NEWS_RESEARCH_ONLY',newsTradingEnabled:false,
+    news:newsCache.news,sourceStatus:newsCache.sourceStatus,error:'Não foi possível atualizar notícias'};
+  }
+ })();
+ try{return await newsPromise;}
+ finally{newsPromise=null;}
 }
 const server=http.createServer(async(req,res)=>{
 const path=new URL(req.url||'/', 'http://localhost').pathname;
@@ -132,7 +190,8 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
-else if(path==='/api/walk-forward')data=getForwardStudy();
+else if(path==='/api/walk-forward')data=await getForwardStudy();
+else if(path==='/api/news-research')data=await getNewsResearch();
 else if(path==='/api/strategy-lab'){
   data=await getStrategyLabReport();
 }
