@@ -17,6 +17,42 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
  }
  return {
   kind:'supabase',
+  async getFrozenShadowStudy(version='shadow-v1-20261124'){
+   const path=new URL('/rest/v1/trading_shadow_studies',origin);
+   path.searchParams.set('version','eq.'+version);
+   path.searchParams.set('select','version,started_at,configs,fee_bps,slippage_bps,risk_budget_pct,max_exposure_pct,atr_multiplier,target_r_multiple,max_holding_bars');
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows)||rows.length!==1)throw Error('Frozen shadow study unavailable');
+   return rows[0];
+  },
+  async insertShadowObservation(record){
+   if(!record||record.version!=='shadow-v1-20261124'||
+    !['BTCUSDT','ETHUSDT','SOLUSDT'].includes(record.symbol)||
+    ![record.candleOpenTime,record.candleCloseTime].every(Number.isSafeInteger)||
+    ![record.candleOpen,record.candleClose,record.candleHigh,record.candleLow,record.atr14,record.stopDistance].every(Number.isFinite)||
+    !record.signals||['reference','trend_confirmed','volatility_screen','combined'].some(key=>typeof record.signals[key]!=='boolean'))
+     throw Error('Invalid frozen shadow observation');
+   const path=new URL('/rest/v1/trading_shadow_candles',origin);
+   const row={portfolio_id:id,version:record.version,symbol:record.symbol,
+    candle_open_time:record.candleOpenTime,candle_close_time:record.candleCloseTime,
+    candle_open:record.candleOpen,candle_high:record.candleHigh,candle_low:record.candleLow,
+    candle_close:record.candleClose,atr14:record.atr14,
+    stop_distance:record.stopDistance,signals:record.signals};
+   const saved=await request('POST',path,row,{ignoreDuplicates:true});
+   if(!Array.isArray(saved))throw Error('Frozen shadow archive did not acknowledge observation');
+   return saved.length>0;
+  },
+  async listShadowTrades({limit=500}={}){
+   const path=new URL('/rest/v1/trading_shadow_trades',origin);
+   path.searchParams.set('portfolio_id','eq.'+id);
+   path.searchParams.set('version','eq.shadow-v1-20261124');
+   path.searchParams.set('select','symbol,scenario,status,entry_fill,exit_fill,realized_pnl_usd,net_return_pct,entry_candle_open_time,exit_candle_close_time,exit_reason,stop_price,target_price');
+   path.searchParams.set('order','created_at.desc');
+   path.searchParams.set('limit',String(Math.max(1,Math.min(500,Number(limit)||500))));
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows))throw Error('Invalid shadow trade report');
+   return rows;
+  },
   async getFrozenForwardStudy(version='filters-v1-20261124'){
    const path=new URL('/rest/v1/trading_forward_studies',origin);
    path.searchParams.set('version','eq.'+version);
