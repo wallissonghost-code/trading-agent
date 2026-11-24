@@ -36,7 +36,7 @@ Por padrão, o motor paper usa um arquivo local (`PAPER_STATE_PATH` ou `/tmp/tra
 
 Para persistência externa, o código requer `SUPABASE_URL` e **uma** das variáveis `SUPABASE_SECRET_KEY` ou `SUPABASE_SERVICE_ROLE_KEY`, além da configuração de esquema/permissões correspondente. **Nunca armazene os valores no repositório.** As variáveis são nomes de configuração, não instruções para divulgá-las publicamente.
 
-A aplicação depende de um processo Node persistente para ciclos periódicos; uma hospedagem serverless de páginas estáticas **não substitui** esse serviço. Hospedagem com suspensão de instâncias interrompe a coleta durante a suspensão; não há mecanismo garantido de estudo contínuo em plano que hiberna.
+A aplicação depende de um processo Node persistente para ciclos periódicos; uma hospedagem serverless de páginas estáticas **não substitui** esse serviço. **Limite de disponibilidade:** o serviço confirmado no Render está no plano `free`. Segundo a documentação do Render, instâncias web gratuitas entram em suspensão após 15 minutos sem tráfego recebido; os ciclos em memória deixam de rodar nesse intervalo. O banco Supabase preserva o que já foi gravado, mas não recria candles e decisões que o processo não coletou. Este projeto não garante monitoramento 24/7 no plano gratuito. Não usar mecanismos de tráfego artificial como substituto de uma arquitetura de processamento contínuo.
 
 O status de um **outro projeto** no Vercel não comprova deploy deste servidor. Verifique a URL real do Render e os endpoints `/health`, `/api/paper` e `/api/agent-diagnostics` antes de declarar publicação bem-sucedida.
 
