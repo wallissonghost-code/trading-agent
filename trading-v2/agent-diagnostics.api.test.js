@@ -54,6 +54,7 @@ test('HTTP diagnostics remains read-only, per-agent and separately identifiable 
   assert.equal(adminResponse.status,503);
   const adminUnavailable=await adminResponse.json();
   assert.equal(adminUnavailable.code,'NOT_CONFIGURED');
+  assert.equal((await fetch(url+'/api/admin/audit-log')).status,503);
   assert.equal((await fetch(url+'/api/admin/gap-review',{method:'POST'})).status,405);
   assert.deepEqual(g.symbols.map(x=>x.status),['NO_QUARANTINE','NO_QUARANTINE','NO_QUARANTINE']);
  }finally{
@@ -89,14 +90,14 @@ test('protected dossier route requires admin token and never exposes secret in r
   const incorrect=await fetch(url+'/api/admin/gap-review',{headers:{authorization:'Bearer '+'x'.repeat(40)}});
   assert.equal(incorrect.status,401);
   const authorized=await fetch(url+'/api/admin/gap-review',{headers:{authorization:'Bearer '+secret}});
-  assert.equal(authorized.status,200);
+  assert.equal(authorized.status,503); // Fail closed without durable Supabase audit storage.
   const raw=await authorized.text();
   assert.equal(raw.includes(secret),false);
   const report=JSON.parse(raw);
-  assert.equal(report.administrativeReview.readOnly,true);
-  assert.equal(report.administrativeReview.manualMutationsEnabled,false);
-  assert.equal(report.administrativeReview.cases.length,3);
-  assert.equal(report.administrativeReview.lockedCount,0);
+  assert.equal(report.code,'AUDIT_UNAVAILABLE');
+  const auditAccess=await fetch(url+'/api/admin/audit-log',{headers:{authorization:'Bearer '+secret}});
+  assert.equal(auditAccess.status,503);
+  assert.equal((await auditAccess.json()).code,'AUDIT_UNAVAILABLE');
   const publicReport=await (await fetch(url+'/api/gap-reconciliation')).json();
   assert.equal(Object.hasOwn(publicReport,'administrativeReview'),false);
  }finally{
