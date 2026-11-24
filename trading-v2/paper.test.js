@@ -143,3 +143,53 @@ test('paper exposure diagnostic distinguishes an exhausted 50% limit without pla
  assert.deepEqual(account.trades,[]);
  assert.deepEqual(account.positions,{});
 });
+
+
+test('missing 5-minute candles are recorded without backdated paper orders',()=>{
+ const a=createAccount(),cs=candles();
+ const earlier=cs.at(-1).closeTime-4*300000;
+ a.lastCandle.ETHUSDT=earlier;
+ const result=processCandle(a,'ETHUSDT',cs);
+ assert.equal(result.processed,true);
+ assert.equal(result.missedCandles,3);
+ assert.equal(a.dataGaps.ETHUSDT.missedCandles,3);
+ assert.equal(a.lastDecisions.ETHUSDT.reason,'DATA_GAP_RESUMED');
+ assert.equal(a.trades.length,0);
+ assert.equal(a.lastCandle.ETHUSDT,cs.at(-1).closeTime);
+ const repeated=processCandle(a,'ETHUSDT',cs);
+ assert.equal(repeated.processed,false);
+ assert.equal(a.trades.length,0);
+});
+test('open paper position remains quarantined after a missed candle, and state persists',async()=>{
+ const a=createAccount(),cs=candles(),latest=cs.at(-1);
+ a.cash=8999;
+ a.positions.BTCUSDT={symbol:'BTCUSDT',entry:100,quantity:10,cost:1001,stop:95,take:110};
+ a.lastCandle.BTCUSDT=latest.closeTime-3*300000;
+ latest.open=99;latest.low=90;latest.high=112;latest.close=100;
+ const snapshotBefore={cash:a.cash,tradeCount:a.trades.length};
+ const resumed=processCandle(a,'BTCUSDT',cs);
+ assert.equal(resumed.missedCandles,2);
+ assert.equal(resumed.locked,true);
+ assert.equal(a.lastDecisions.BTCUSDT.reason,'DATA_GAP_POSITION_LOCK');
+ assert.equal(a.cash,snapshotBefore.cash);
+ assert.equal(a.trades.length,snapshotBefore.tradeCount);
+ assert.ok(a.positions.BTCUSDT);
+ const dir=await mkdtemp(join(tmpdir(),'gap-lock-'));const path=join(dir,'state.json');
+ try{
+  await saveAccount(path,a);
+  const restored=await loadAccount(path);
+  assert.equal(restored.gapLocks.BTCUSDT,true);
+  const newer=candles(100,latest.closeTime+300000);
+  const second=processCandle(restored,'BTCUSDT',newer,{now:new Date(newer.at(-1).closeTime+1000).toISOString()});
+  assert.equal(second.reason,'DATA_GAP_POSITION_LOCK');
+  assert.equal(restored.trades.length,0);
+  assert.ok(restored.positions.BTCUSDT);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+test('existing paper account without gap metadata remains compatible',()=>{
+ const old=createAccount();delete old.dataGaps;delete old.gapLocks;
+ const cs=candles();
+ assert.equal(processCandle(old,'SOLUSDT',cs).processed,true);
+ assert.deepEqual(old.dataGaps,{});
+ assert.deepEqual(old.gapLocks,{});
+});
