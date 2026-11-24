@@ -50,6 +50,14 @@ O papel de `trading-v2/paper.js` é **não inventar execuções enquanto o Rende
 - **Reconciliação:** neste estágio não há botão automático para desbloquear. Uma posição com `gapLocks` exige revisão específica do histórico e uma política segura de retomada antes de qualquer mutação; não apagar a trava manualmente em produção sem avaliar a posição preservada. O histórico existente continua intacto.
 - Essa proteção **não substitui coleta 24/7** e não reconstitui ordens perdidas. O motor continua restrito a paper trading, com execução financeira real desativada.
 
+## Auditoria de reconciliação — somente leitura
+
+A rota `GET /api/gap-reconciliation` produz um relatório de evidências para **posições virtuais bloqueadas** por lacunas de candles. Sem posição em quarentena, retorna `NO_QUARANTINE` sem consultar dados externos. Para cada posição bloqueada, consulta até 1000 candles públicos de 5 minutos da Binance Spot e compara a sequência com o último candle persistido antes da lacuna.
+
+Os possíveis resultados incluem `MANUAL_REVIEW_REQUIRED` (OHLC contínuo disponível), `HISTORY_INCOMPLETE`, `INSUFFICIENT_EVIDENCE` e `MARKET_DATA_UNAVAILABLE`. A auditoria indica possíveis toques em stop ou alvo; quando ambos aparecem na mesma vela, informa `BOTH_IN_SAME_CANDLE`, pois os candles OHLC **não revelam a ordem intravela**. Mesmo com histórico completo, um toque não é uma ordem executada.
+
+Essa API não tem métodos de alteração da carteira, não liquida operações, não modifica histórico, não desbloqueia `gapLocks` e não atribui resultado financeiro a eventos não observados. O painel mostra apenas o parecer; a posição permanece bloqueada até que exista um processo de reconciliação administrativa separado, autorizado e auditado. Essa funcionalidade não soluciona a hibernação do serviço gratuito.
+
 ## Testes
 
 `npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-agent-v2.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
