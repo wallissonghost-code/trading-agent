@@ -39,14 +39,14 @@ function buildSignals(candles,cfg){
  }
  return signals;
 }
-function runSegment(candles,from,to,cfg,signals){
+function runSegment(candles,from,to,cfg,signals,{feeRate=FEE_RATE,slippageRate=SLIPPAGE_RATE}={}){
  let cash=STARTING_CASH,position=null,peak=STARTING_CASH,maxDrawdown=0;
  let wins=0,losses=0,profit=0,loss=0,closed=0,entries=0;
  const equityAt=price=>cash+(position?position.qty*price:0);
  function exit(fillPrice){
   const proceeds=position.qty*fillPrice;
-  const pnl=proceeds-proceeds*FEE_RATE-position.cost;
-  cash+=proceeds*(1-FEE_RATE);
+  const pnl=proceeds-proceeds*feeRate-position.cost;
+  cash+=proceeds*(1-feeRate);
   closed++;
   if(pnl>0){wins++;profit+=pnl;}else if(pnl<0){losses++;loss+=-pnl;}
   position=null;
@@ -59,20 +59,20 @@ function runSegment(candles,from,to,cfg,signals){
     if(stopHit||targetHit){
       // Conservative when stop and target are touched in the same candle: stop wins.
       const base=stopHit?Math.min(position.stop,bar.open):position.target;
-      exit(base*(1-SLIPPAGE_RATE));
+      exit(base*(1-slippageRate));
     }
   } else {
     const signal=signals[i];
     if(signal){
-      const entry=bar.open*(1+SLIPPAGE_RATE);
+      const entry=bar.open*(1+slippageRate);
       const stop=signal.last-signal.stopDistance;
       const stopDistance=entry-stop;
       const capital=equityAt(bar.open);
       if(stop>0&&stopDistance>0&&Number.isFinite(stopDistance)){
-       const qty=Math.min((capital*.01)/(stopDistance+entry*(FEE_RATE*2+SLIPPAGE_RATE)),
-         (capital*.5)/entry,cash/(entry*(1+FEE_RATE)));
+       const qty=Math.min((capital*.01)/(stopDistance+entry*(feeRate*2+slippageRate)),
+         (capital*.5)/entry,cash/(entry*(1+feeRate)));
        if(Number.isFinite(qty)&&qty*entry>=10){
-        const cost=qty*entry*(1+FEE_RATE);
+        const cost=qty*entry*(1+feeRate);
         cash-=cost;entries++;
         position={qty,cost,stop,target:entry+2*stopDistance};
         // Position may hit stop/target in its entry candle (no look-ahead).
@@ -89,7 +89,7 @@ function runSegment(candles,from,to,cfg,signals){
   peak=Math.max(peak,marked);
   maxDrawdown=Math.max(maxDrawdown,peak>0?(peak-marked)/peak*100:0);
  }
- if(position)exit(candles[to-1].close*(1-SLIPPAGE_RATE)); // Forced segment-end close, including fees.
+ if(position)exit(candles[to-1].close*(1-slippageRate)); // Forced segment-end close, including fees.
  const net=cash-STARTING_CASH;
  return {startingCash:STARTING_CASH,endingCash:fix(cash),netPnl:fix(net),
   returnPct:fix(net/STARTING_CASH*100),closedTrades:closed,entries,
@@ -98,7 +98,9 @@ function runSegment(candles,from,to,cfg,signals){
   maxDrawdownPct:fix(maxDrawdown)};
 }
 
-export function runStrategyLab(candles,{symbol='BTCUSDT'}={}){
+export function runStrategyLab(candles,{symbol='BTCUSDT',costModel={feeRate:FEE_RATE,slippageRate:SLIPPAGE_RATE}}={}){
+ const {feeRate,slippageRate}=costModel;
+ if(!Number.isFinite(feeRate)||!Number.isFinite(slippageRate)||feeRate<0||feeRate>.01||slippageRate<0||slippageRate>.01)throw Error('Invalid research-only cost model');
  if(!Array.isArray(candles)||candles.length<180||candles.length>3500)throw Error('Research requires 180–3500 closed candles');
  for(let i=0;i<candles.length;i++){
   const c=candles[i];
@@ -110,8 +112,8 @@ export function runStrategyLab(candles,{symbol='BTCUSDT'}={}){
  const split=Math.round(candles.length*.7);
  const candidates=LAB_CANDIDATES.map(candidate=>{
   const signals=buildSignals(candles,candidate);
-  const train=runSegment(candles,40,split,candidate,signals);
-  const test=runSegment(candles,split,candles.length,candidate,signals);
+  const train=runSegment(candles,40,split,candidate,signals,costModel);
+  const test=runSegment(candles,split,candles.length,candidate,signals,costModel);
   return {id:candidate.id,label:candidate.label,train,test,
    holdoutEvidence:test.closedTrades>=30&&(candles.at(-1).closeTime-candles[split].closeTime)>=7*24*60*60*1000?'preliminary':'insufficient',
    promotionEligible:false};
@@ -121,7 +123,7 @@ export function runStrategyLab(candles,{symbol='BTCUSDT'}={}){
   shortWindowWarning:'Historical window under multiple market regimes; results are not strategy validation',
   trainEndsAt:new Date(candles[split-1].closeTime).toISOString(),
   testStartsAt:new Date(candles[split].time??candles[split].closeTime-299999).toISOString(),
-  testedParameters:LAB_CANDIDATES.length,feeRate:FEE_RATE,slippageRate:SLIPPAGE_RATE,
+  testedParameters:LAB_CANDIDATES.length,feeRate,slippageRate,
   executionAssumption:'next_candle_open;stop_first_if_ambiguous',
   notLiveFills:true,autoPromotionEnabled:false,orderExecutionEnabled:false,
   tradeStrategyChanged:false,candidates};
