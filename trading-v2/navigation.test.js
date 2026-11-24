@@ -33,7 +33,7 @@ test('all original sections and financial controls remain in the appropriate wor
  assert.match(views.noticias,/id="newsImpactMetrics"/);
  assert.match(views.auditoria,/id="researchAuditResults"/);
  assert.match(views.auditoria,/id="lossDiagnosticsResults"/);
- assert.equal((before.match(/<section\b/g)||[]).length,18);
+ assert.equal((before.match(/<section\b/g)||[]).length,19); // 18 original sections + new monitoring panel
 });
 test('tab navigation uses URL hashes, no external dependencies, and no eager research requests',()=>{
  const code=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
