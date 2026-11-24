@@ -44,3 +44,17 @@ test('tab navigation uses URL hashes, no external dependencies, and no eager res
  assert.ok(!code.includes('renderRobots(null);sync();refreshTradeHistory();'));
  assert.match(html,/\.workspace-view\[hidden\]\{display:none!important\}/);
 });
+
+test('prospective complete-trade cockpit stays inside Strategies tab and loads on demand',()=>{
+ const strategies=html.slice(html.indexOf('id="view-estrategias"'),html.indexOf('id="view-noticias"'));
+ const panel=html.slice(html.indexOf('id="view-painel"'),html.indexOf('id="view-operacoes"'));
+ assert.match(strategies,/id="shadowTradeStatus"/);
+ assert.match(strategies,/id="shadowTradeMarkets"/);
+ assert.match(strategies,/id="shadowTradeHistory"/);
+ assert.match(strategies,/id="refreshShadowTrades"/);
+ assert.doesNotMatch(panel,/id="shadowTradeStatus"/);
+ const script=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+ assert.match(script,/fetch\('\/api\/shadow-trades'/);
+ assert.match(script,/if\(selected==='estrategias'\)\{\s*void refreshShadowTrades\(\)/);
+ assert.doesNotThrow(()=>new Function(script));
+});
