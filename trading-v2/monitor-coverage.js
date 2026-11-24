@@ -54,3 +54,48 @@ export function summarizeObservedCoverage({observations=[],events=[],states=[],n
   notice:'Observed 5m candle coverage, NOT 24/7 uptime. Missing slots may mean Render sleep, data API gaps, or collection outages. Incident timestamps are detection times only.',
   bySymbol,orderExecutionEnabled:false,autoPromotionEnabled:false};
 }
+
+// One 24-hour timeline per robot: 24 buckets of 12 *fully closed* 5m candle slots.
+// "Unobserved" means not recorded, not an independently verified service outage.
+// Alert markers reflect the detector's timestamp, not the time an issue began.
+export function buildObservedTimeline({observations=[],events=[],now=Date.now(),partial=false}={}){
+ if(!Array.isArray(observations)||!Array.isArray(events)||!Number.isFinite(now))
+  throw Error('Invalid timeline input');
+ const closedThrough=Math.floor(now/SLOT_MS)*SLOT_MS-1;
+ const windowStart=closedThrough-24*60*60*1000+SLOT_MS;
+ const buckets=24,slotsPerBucket=12;
+ const bySymbol=Object.fromEntries(ASSETS.map(symbol=>{
+  const observed=new Set(observations.filter(x=>x.symbol===symbol)
+   .map(x=>Number(x.candle_close_time))
+   .filter(t=>Number.isSafeInteger(t)&&t>=windowStart&&t<=closedThrough&&(t+1)%SLOT_MS===0));
+  const timeline=Array.from({length:buckets},(_,i)=>{
+   const first=windowStart+i*slotsPerBucket*SLOT_MS;
+   const end=first+(slotsPerBucket-1)*SLOT_MS;
+   let recorded=0;
+   for(let j=0;j<slotsPerBucket;j++)if(observed.has(first+j*SLOT_MS))recorded++;
+   const incidents=events.filter(x=>x.symbol===symbol)
+    .filter(x=>{
+      const detected=Date.parse(x.recorded_at);
+      return Number.isFinite(detected)&&detected>first-SLOT_MS&&detected<=end;
+    });
+   return {start:new Date(first-SLOT_MS+1).toISOString(),
+    end:new Date(end).toISOString(),recorded,
+    unobserved:slotsPerBucket-recorded,
+    events:incidents.map(x=>({kind:x.kind,detectedAt:x.recorded_at})),
+    state:recorded===slotsPerBucket?'RECORDED':
+     recorded===0?'UNOBSERVED':'PARTIAL'};
+  });
+  return [symbol,{recorded:observed.size,unobserved:288-observed.size,
+   coveragePct:Math.round(observed.size/288*10000)/100,
+   detectedIncidents:timeline.reduce((n,x)=>n+x.events.length,0),
+   timeline}];
+ }));
+ return {ok:true,mode:'OBSERVED_24H_TIMELINE',
+  windowHours:24,slotsPerMarket:288,bucketsPerMarket:24,
+  windowStart:new Date(windowStart-SLOT_MS+1).toISOString(),
+  windowEnd:new Date(closedThrough).toISOString(),
+  observationHistoryPartial:Boolean(partial),
+  eventHistoryLimited:true,
+  distinction:'No recorded candle is UNKNOWN, not a proven outage. Incident icons mark detection timestamps and may not cover the real incident duration.',
+  orderExecutionEnabled:false,autoPromotionEnabled:false,bySymbol};
+}
