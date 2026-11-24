@@ -274,7 +274,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 </section>
 <section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Cotações públicas da Binance. Os resultados dos robôs vêm exclusivamente da carteira virtual, sem execução de ordens.</p></section>
 <section class="metrics" aria-label="Indicadores simulados"><div class="metric"><span>CAPITAL SIMULADO</span><strong id="capital">$ 10.000,00</strong></div><div class="metric"><span>RESULTADO TOTAL SIMULADO</span><strong id="pnl" class="positive">+$ 0,00</strong></div><div class="metric"><span>ROBÔS EM MONITORAMENTO</span><strong>03</strong></div><div class="metric"><span>ORDENS REAIS</span><strong>0</strong></div></section>
-<section class="room"><div class="room-top"><div><div class="eyebrow">Operations Floor / Virtual Office</div><h2 style="margin:6px 0">Mesa dos robôs</h2><p>P&L individual calculado pelas operações da carteira virtual</p></div><span class="pill" id="mode">PARADO</span></div><div id="collectorWarning" class="muted" role="status" aria-live="polite" style="font-size:12px;margin:0 0 12px">Consultando a última coleta dos robôs...</div><div class="office" id="office"></div></section>
+<section class="room"><div class="room-top"><div><div class="eyebrow">Operations Floor / Virtual Office</div><h2 style="margin:6px 0">Mesa dos robôs</h2><p>P&L individual calculado pelas operações da carteira virtual</p></div><span class="pill" id="mode">PARADO</span></div><div id="collectorWarning" class="muted" role="status" aria-live="polite" style="font-size:12px;margin:0 0 12px">Consultando a última coleta dos robôs...</div><div id="gapReconciliationNote" class="muted" role="status" aria-live="polite" style="font-size:12px;margin:0 0 12px"></div><div class="office" id="office"></div></section>
 <section class="panel" style="margin-top:18px"><div class="between" style="margin-bottom:12px"><div><div class="eyebrow">Binance Spot / 5 minutos</div><h2 style="margin:6px 0">Leitura do mercado real</h2></div><button id="refreshMarket" type="button">Atualizar cotações</button></div><p class="muted" style="font-size:12px">Apenas dados públicos e candles fechados. Nenhuma compra, venda ou operação foi executada.</p><div class="metrics" id="liveMarket" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="metric">BTC/USDT<br><small>Carregando...</small></div><div class="metric">ETH/USDT<br><small>Carregando...</small></div><div class="metric">SOL/USDT<br><small>Carregando...</small></div></div><div id="marketUpdated" class="muted" style="font-size:12px"></div></section>
 <section class="panel" style="margin-top:18px"><div class="between"><div><div class="eyebrow">PAPER TRADING / USDT FICTÍCIO</div><h2 style="margin:6px 0">Carteira dos agentes</h2></div><span class="pill">SEM ORDENS REAIS</span></div><p class="muted" style="font-size:12px">Simulação automática sobre candles públicos de 5 minutos. Preenchimentos fictícios: não equivalem a preços executáveis na corretora. A persistência é indicada abaixo; armazenamento local no Render gratuito é temporário.</p><div class="metrics" id="paperMetrics" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="metric"><span>PATRIMÔNIO VIRTUAL</span><strong>Carregando</strong></div></div><div id="paperHoldings" class="log"></div><details class="monitor-alerts-details" id="paperAgentDecisionPanel">
  <summary><strong>Por que cada robô está aguardando?</strong> <span class="muted">• última decisão individual</span></summary>
@@ -379,6 +379,7 @@ const signed=n=>(n>=0?'+':'−')+usd(Math.abs(n));
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let previousPaper=null,busy=false;
 let latestAgentDiagnostics=null;
+let latestGapReview=null,gapReviewCheckedAt=0,gapReviewPending=false;
 
 function renderRobots(p){
  const available=Boolean(p?.ready),positions=available?p.positions||[]:[];
@@ -430,6 +431,37 @@ function renderAgentPaperDecisions(p){
    (err?'<p class="health-error">Falha de coleta: '+esc(err)+'</p>':'')+'</div>';
  }).join('');
 }
+function renderGapReconciliation(){
+ const el=$('gapReconciliationNote'),locked=latestAgentDiagnostics?.agents?.filter(a=>a.gapLocked)||[];
+ if(!locked.length){el.textContent='';return;}
+ if(!latestGapReview){
+  el.textContent='Auditoria histórica da posição simulada: aguardando dados públicos. Bloqueio permanece ativo.';return;
+ }
+ const labels={MANUAL_REVIEW_REQUIRED:'OHLC consultado; revisão humana ainda necessária',
+  HISTORY_INCOMPLETE:'histórico incompleto',
+  INSUFFICIENT_EVIDENCE:'evidências inconsistentes',
+  MARKET_DATA_UNAVAILABLE:'Binance indisponível'};
+ const trigger={STOP_TOUCHED:'possível toque no stop',TAKE_TOUCHED:'possível toque no alvo',
+  BOTH_IN_SAME_CANDLE:'stop e alvo tocados na mesma vela; sequência desconhecida'};
+ const items=latestGapReview.symbols.filter(s=>s.locked).map(s=>{
+  const detail=labels[s.status]||'auditoria inconclusiva';
+  const touch=trigger[s.firstPossibleTrigger?.classification];
+  return s.symbol+': '+detail+(touch?' • '+touch:'')+
+   (Number.isFinite(s.candlesMissing)?' • '+s.candlesMissing+' candles ainda ausentes':'');
+ });
+ el.textContent='Reconciliação somente leitura: '+items.join(' | ')+'. Nenhuma ordem gerada e nenhuma posição desbloqueada.';
+}
+async function refreshGapReconciliation(){
+ if(gapReviewPending||Date.now()-gapReviewCheckedAt<120000)return;
+ gapReviewPending=true;gapReviewCheckedAt=Date.now();
+ try{
+  const response=await fetch('/api/gap-reconciliation',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const data=await response.json();
+  latestGapReview=data?.mode==='PAPER_ONLY'&&Array.isArray(data.symbols)?data:null;
+ }catch(error){latestGapReview=null;console.warn('Auditoria de lacunas indisponível:',String(error.message||error));}
+ finally{gapReviewPending=false;renderGapReconciliation();}
+}
 function renderPaper(p){
  previousPaper=p;
  const warning=$('collectorWarning');
@@ -438,6 +470,7 @@ function renderPaper(p){
  const failed=diag?.agents?.filter(a=>a.state==='ERRO')||[];
  const missing=diag?.agents?.filter(a=>a.state==='SEM_DADOS')||[];
  const locked=diag?.agents?.filter(a=>a.gapLocked)||[];
+ renderGapReconciliation();
  if(!diag){warning.textContent='Diagnóstico da coleta indisponível. Os valores exibidos podem estar desatualizados.';}
  else if(failed.length){warning.textContent='Falha de coleta ou persistência: '+failed.map(a=>a.name).join(', ')+'. Histórico virtual não equivale a atividade atual.';}
  else if(stale.length){warning.textContent='Coleta atrasada: '+stale.map(a=>a.name+' ('+(a.ageSeconds===null?'idade desconhecida':Math.floor(a.ageSeconds/60)+' min sem candle novo')+')').join(', ')+'. '+(locked.length?'Posições protegidas contra preenchimentos fictícios após lacunas: '+locked.map(a=>a.name).join(', ')+'. ':'')+'No plano gratuito o servidor pode hibernar; não há garantia de execução 24h.';}
@@ -492,6 +525,8 @@ async function refreshPaper(){
   }
   if(paperResult.status!=='fulfilled'||!paperResult.value.ok)throw Error('Carteira indisponível');
   renderPaper(await paperResult.value.json());
+  if(latestAgentDiagnostics?.agents?.some(a=>a.gapLocked)){void refreshGapReconciliation();}
+  else {latestGapReview=null;gapReviewCheckedAt=0;renderGapReconciliation();}
  }catch(e){latestAgentDiagnostics=null;renderPaper({ready:false,error:e.message});}
 }
 async function refreshRealMarket(){
