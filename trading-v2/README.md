@@ -42,7 +42,7 @@ O status de um **outro projeto** no Vercel não comprova deploy deste servidor. 
 
 ## Testes
 
-`npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-v2-tests.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
+`npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-agent-v2.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
 
 Os critérios de aceitação estão em [DIAGNOSTICOS_CRITERIOS.md](DIAGNOSTICOS_CRITERIOS.md). A continuidade do projeto e as limitações verificadas ficam em [CONTINUIDADE_PROJETO.md](../CONTINUIDADE_PROJETO.md).
 
