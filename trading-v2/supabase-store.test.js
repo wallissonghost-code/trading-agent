@@ -64,3 +64,33 @@ test('reads next-candle signal outcomes privately and enforces a safe limit',asy
  }});
  assert.deepEqual(await store.listSignalOutcomes({limit:1000}),[item]);
 });
+
+
+test('admin access records append-only events and queries them without secrets',async()=>{
+ const seen=[];
+ const store=createSupabaseStore({url:'https://example.supabase.co',key:'server-test-key',fetchFn:async(url,opts)=>{
+  assert.equal(url.pathname,'/rest/v1/trading_admin_access_audit');
+  assert.equal(opts.headers.apikey,'server-test-key');
+  seen.push({method:opts.method,path:url.pathname,body:opts.body});
+  if(opts.method==='POST')return {ok:true,text:async()=>JSON.stringify([{
+   id:12,occurred_at:'2026-11-24T21:00:00Z'}])};
+  return {ok:true,text:async()=>JSON.stringify([{
+   id:12,portfolio_id:'main',event_type:'ADMIN_REVIEW_ACCESS',outcome:'UNAUTHORIZED',route:'gap-review',occurred_at:'2026-11-24T21:00:00Z'}])};
+ }});
+ const stored=await store.appendAdminReviewAccess({outcome:'UNAUTHORIZED',route:'gap-review'});
+ assert.equal(stored.id,12);
+ const event=JSON.parse(seen[0].body);
+ assert.deepEqual(event,{portfolio_id:'main',event_type:'ADMIN_REVIEW_ACCESS',outcome:'UNAUTHORIZED',route:'gap-review'});
+ assert.equal(seen[0].body.includes('server-test-key'),false);
+ const list=await store.listAdminReviewAccess({limit:300});
+ assert.equal(list.length,1);
+ assert.equal(seen[1].method,'GET');
+});
+test('admin audit rejects arbitrary events and fails closed on persistence errors',async()=>{
+ const store=createSupabaseStore({url:'https://example.supabase.co',key:'test-secret',fetchFn:async()=>({
+  ok:false,status:503,text:async()=>'service unavailable'
+ })});
+ await assert.rejects(()=>store.appendAdminReviewAccess({outcome:'AUTHORIZED',route:'gap-review'}),/HTTP 503/);
+ await assert.rejects(()=>store.appendAdminReviewAccess({outcome:'INVALID'}),/Invalid admin audit event/);
+ await assert.rejects(()=>store.appendAdminReviewAccess({outcome:'AUTHORIZED',route:'arbitrary'}),/Invalid admin audit event/);
+});
