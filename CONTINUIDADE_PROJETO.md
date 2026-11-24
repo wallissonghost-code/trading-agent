@@ -102,3 +102,21 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 - Repositório: https://github.com/wallissonghost-code/trading-agent
 - Arquivo de critérios: https://github.com/wallissonghost-code/trading-agent/blob/trading-agent-v2/trading-v2/DIAGNOSTICOS_CRITERIOS.md
 - Frontend: https://github.com/wallissonghost-code/trading-agent/blob/trading-agent-v2/trading-v2/index.html
+
+## 10. Execução de 2026-11-24 — Diagnóstico do motor paper
+
+**Solicitado:** continuar desenvolvimento pelos diagnósticos dos robôs.
+
+**Implementado no GitHub:**
+- `trading-v2/agent-diagnostics.js` — estados derivados do snapshot persistido do paper runner, por símbolo, com horário do último candle, última decisão, motivo, PnL simulado e sinalização de falhas. Commit `97627135`.
+- `trading-v2/agent-diagnostics.test.js` — oito testes automatizados para estado sem sinal, operação paper, coleta atrasada, falhas, ausência de dados, pausa, PnL ausente e identificação dos três agentes. Commit `7608b88c`.
+- `trading-v2/server.js` — novo endpoint read-only `GET /api/agent-diagnostics` derivado do paper runner. Commit `b0f8301c`.
+- `trading-v2/index.html` — cartões dos três robôs agora consultam diagnósticos da API em vez de inferir estado apenas pela presença de posições. Commit `cce90e0a`.
+
+**Testado:** os testes foram escritos, porém **não executados nesta sessão**. O ambiente de trabalho não alcançou o GitHub por acesso de rede do container. Não há confirmação de CI ou deploy para esses commits.
+
+**Publicado:** commits enviados ao GitHub na branch `trading-agent-v2`; publicação da aplicação ainda **não verificada**.
+
+**Próximos passos prioritários:** (1) executar `cd trading-v2 && npm test` e corrigir eventuais falhas; (2) testar `GET /api/agent-diagnostics` em deploy real e validar os três robôs em mobile; (3) revisar prioridades dos estados, especialmente casos de feed parado, banco indisponível e diferenças entre status do estudo prospectivo e paper runner; (4) auditar deploy, rotina Render e persistência; (5) confirmar que NOVA apresenta o motivo verificável para não abrir operações.
+
+**Limite importante:** as categorias `AGUARDANDO_CANDLE` e `AVALIACAO_PENDENTE` são próprias do estudo prospectivo; o novo endpoint atual distingue estados comprováveis do **motor paper** e não os inventa a partir de ausência de operações.
