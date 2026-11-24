@@ -463,6 +463,7 @@ async function refreshPaper(){
   latestAgentDiagnostics=null;
   if(diagResult.status==='fulfilled'&&diagResult.value.ok){
    const report=await diagResult.value.json();
+   // Keep per-agent error diagnostics even when aggregate paper health is false.
    if(Array.isArray(report.agents))latestAgentDiagnostics=report;
   }
   if(paperResult.status!=='fulfilled'||!paperResult.value.ok)throw Error('Carteira indisponível');
