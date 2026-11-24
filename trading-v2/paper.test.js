@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp,rm } from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import { createAccount,snapshot,processCandle,saveAccount,loadAccount,createPaperRunner,classifyPaperEntryBlock } from './paper.js';
+import { createAccount,snapshot,processCandle,saveAccount,loadAccount,createPaperRunner,classifyPaperEntryBlock,assertPaperCandleContinuity } from './paper.js';
 import {generateMockCandles} from './engine.js';
 function candles(base=100,end=Date.now()-300000){
  const rows=generateMockCandles(base,60);
@@ -192,4 +192,49 @@ test('existing paper account without gap metadata remains compatible',()=>{
  assert.equal(processCandle(old,'SOLUSDT',cs).processed,true);
  assert.deepEqual(old.dataGaps,{});
  assert.deepEqual(old.gapLocks,{});
+});
+
+
+test('paper indicators refuse missing candles inside the latest 35-bar window',()=>{
+ const a=createAccount(),cs=candles();
+ cs.splice(cs.length-9,1);
+ const original=structuredClone(a);
+ assert.throws(()=>processCandle(a,'ETHUSDT',cs),/Incomplete paper market candle window/);
+ assert.deepEqual(a,original);
+ assert.equal(a.trades.length,0);
+});
+test('paper refuses distorted OHLC values and tampered candle intervals',()=>{
+ const a=createAccount(),cs=candles();
+ cs.at(-2).high=cs.at(-2).low-1;
+ assert.throws(()=>processCandle(a,'SOLUSDT',cs),/Invalid paper market candle/);
+ assert.deepEqual(a,createAccount());
+ const bad=candles();
+ bad.at(-3).closeTime-=1000;
+ assert.throws(()=>assertPaperCandleContinuity(bad),/Invalid paper market candle/);
+});
+test('continuity validation accepts normal five-minute closed market windows',()=>{
+ assert.equal(assertPaperCandleContinuity(candles()),true);
+});
+test('paper runner does not present uncommitted quotes when remote persistence fails',async()=>{
+ const account=createAccount();
+ account.cash=8999;
+ account.positions.BTCUSDT={symbol:'BTCUSDT',entry:100,quantity:10,cost:1001,stop:90,take:120};
+ const cs=candles();
+ cs.at(-1).close=101;
+ cs.at(-1).high=Math.max(cs.at(-1).high,cs.at(-1).close);
+ cs.at(-1).low=Math.min(cs.at(-1).low,cs.at(-1).close);
+ let saves=0;
+ const runner=createPaperRunner({
+  store:{kind:'fake_remote',load:async()=>account,save:async()=>{saves++;throw Error('disk unavailable')}},
+  fetchKlines:async()=>({candles:cs})
+ });
+ await runner.init();
+ const initial=runner.status();
+ await runner.runOnce();
+ const after=runner.status();
+ assert.equal(saves,1);
+ assert.equal(after.ready,false);
+ assert.equal(after.equity,initial.equity);
+ assert.equal(after.positions[0].markPrice,100);
+ assert.equal(after.positions[0].entry,100);
 });
