@@ -665,12 +665,22 @@ async function refreshProspectiveScreens(){
   const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
   const labels={reference:'Referência seletiva',atr_at_least_025:'Volatilidade ATR ≥ 0,25%',momentum_6_positive:'Seis candles em alta',atr_and_momentum:'Volatilidade + tendência'};
   const pct=n=>n===null?'—':Number(n).toLocaleString('pt-BR',{maximumFractionDigits:4})+'%';
+  const diagnostics={
+   NO_OBSERVATIONS:'Sem observações para este mercado',
+   COLLECTION_DELAYED:'Coleta atrasada; não é possível avaliar sinais recentes',
+   EVALUATION_MISSING:'Candle seguinte coletado, mas resultado ausente: verificar apuração',
+   RESULT_EXPIRED:'Candle de resultado perdido; avaliação não recuperável',
+   WAITING_NEXT_CANDLE:'Sinal registrado; aguardando candle seguinte',
+   NO_ELIGIBLE_SIGNALS:'Coleta registrada; nenhuma entrada elegível',
+   OBSERVING_RESULTS:'Sinais avaliados; estudo ainda não validado'
+  };
   status.textContent='Estudo iniciado em '+new Date(report.startedAt).toLocaleString('pt-BR')+
    ' • '+Number(report.observations)+' candles novos • '+Number(report.outcomes)+' avaliações de cenário'+
    (report.partialObservations||report.partialOutcomes?' • histórico parcial':'');
   root.innerHTML=Object.entries(report.bySymbol||{}).map(([symbol,market])=>
    '<div class="hypothesis-screen-card"><div class="between" style="gap:6px;flex-wrap:wrap"><strong>'+esc(names[symbol]||symbol)+'</strong>'+
    '<span class="history-pill">'+Number(market.observedCandles)+' candles</span></div>'+
+   '<p class="muted" style="font-size:12px;font-weight:700;margin-top:9px">'+esc(diagnostics[market.diagnostic]||'Diagnóstico indisponível')+'</p>'+
    '<p class="muted" style="font-size:11px">Lacunas detectadas: '+Number(market.gapIntervals||0)+
    ' • Candles faltantes: '+Number(market.missingCandleSlots||0)+
    ' • Cobertura entre primeiro e último registro: '+(market.coveragePct===null?'—':Number(market.coveragePct).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%')+'</p>'+
