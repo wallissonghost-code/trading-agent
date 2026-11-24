@@ -13,7 +13,7 @@ import { compareCooldowns } from './cooldown-research.js';
 import { compareEntryFilters } from './entry-filter-research.js';
 import { buildForwardObservation, summarizeForwardStudy, verifyFrozenForwardConfig, buildShadowObservation, verifyShadowStudy, summarizeShadowTrades } from './forward-study.js';
 import { summarizeMonitoring } from './monitor-health.js';
-import { summarizeObservedCoverage } from './monitor-coverage.js';
+import { summarizeObservedCoverage, buildObservedTimeline } from './monitor-coverage.js';
 import { auditWalkForwardReports } from './research-audit.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
 import { evaluateHeadlineImpact, summarizeHeadlineImpacts } from './news-impact.js';
@@ -311,6 +311,25 @@ async function syncMonitoringIncidents(){
   return {ok:false,error:'Monitor incidents write unavailable'};
  }finally{monitoringSyncPromise=null;}
 }
+async function getMonitoringTimeline(){
+ if(!paperStore?.listTimelineObservations||!paperStore?.listMonitoringEvents)
+  return {ok:false,mode:'OBSERVED_24H_TIMELINE',error:'Linha do tempo não configurada'};
+ try{
+  const now=Date.now(),lastClose=Math.floor(now/300000)*300000-1;
+  const start=lastClose-24*60*60*1000+300000;
+  const [observations,events]=await Promise.all([
+   paperStore.listTimelineObservations({since:start,limit:1000}),
+   paperStore.listMonitoringEvents({limit:100})
+  ]);
+  return buildObservedTimeline({observations,events,now,
+   partial:observations.length>=1000});
+ }catch(error){
+  console.error('Timeline query failed:',String(error.message||error).slice(0,140));
+  return {ok:false,mode:'OBSERVED_24H_TIMELINE',
+   error:'Linha do tempo de observações indisponível',
+   orderExecutionEnabled:false};
+ }
+}
 async function getMonitoringCoverage(){
  if(!paperStore?.listShadowObservations||!paperStore?.listMonitoringEvents||!paperStore?.listMonitoringStates)
   return {ok:false,mode:'OBSERVED_CANDLE_COVERAGE',error:'Resumo de coleta não configurado'};
@@ -410,6 +429,7 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
+else if(path==='/api/monitor-timeline')data=await getMonitoringTimeline();
 else if(path==='/api/monitor-coverage')data=await getMonitoringCoverage();
 else if(path==='/api/monitor-alerts')data=await getMonitoringAlerts();
 else if(path==='/api/monitor-health')data=await getMonitoringHealth();
