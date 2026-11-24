@@ -12,6 +12,7 @@ import { diagnoseStrategyLosses } from './loss-diagnostics.js';
 import { compareCooldowns } from './cooldown-research.js';
 import { compareEntryFilters } from './entry-filter-research.js';
 import { buildForwardObservation, summarizeForwardStudy, verifyFrozenForwardConfig, buildShadowObservation, verifyShadowStudy, summarizeShadowTrades } from './forward-study.js';
+import { summarizeMonitoring } from './monitor-health.js';
 import { auditWalkForwardReports } from './research-audit.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
 import { evaluateHeadlineImpact, summarizeHeadlineImpacts } from './news-impact.js';
@@ -290,6 +291,18 @@ async function getForwardSnapshot(){
    autoPromotionEnabled:false,realOrdersEnabled:false};
  }
 }
+async function getMonitoringHealth(){
+ if(!paperStore?.listShadowObservations)
+  return {ok:false,error:'Monitoramento de pesquisa não configurado',mode:'READ_ONLY_RESEARCH_HEALTH'};
+ try{
+  const observations=await paperStore.listShadowObservations({limit:360});
+  return summarizeMonitoring({observations,capture:forwardCaptureState,serviceStartedAt:new Date(boot).toISOString()});
+ }catch(err){
+  console.error('Research health query failed:',String(err.message||err).slice(0,140));
+  return {ok:false,mode:'READ_ONLY_RESEARCH_HEALTH',status:'ERROR',
+   error:'Falha ao consultar última coleta',orderExecutionEnabled:false};
+ }
+}
 async function getShadowTradeReport(){
  if(!paperStore?.getFrozenShadowStudy||!paperStore?.listShadowTrades)
   return {ok:false,mode:'FROZEN_PROSPECTIVE_SHADOW_TRADES',error:'Supabase não configurado'};
@@ -342,6 +355,7 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
+else if(path==='/api/monitor-health')data=await getMonitoringHealth();
 else if(path==='/api/shadow-trades')data=await getShadowTradeReport();
 else if(path==='/api/forward-study')data=await getForwardSnapshot();
 else if(path==='/api/entry-filter-research'){
