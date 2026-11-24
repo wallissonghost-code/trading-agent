@@ -66,9 +66,10 @@ test('gap reconciliation UI is informational and never offers unlock operations'
  assert.match(html,/refreshGapReconciliation/);
 });
 
-test('administrative audit panel displays evidence IDs without offering unlock',()=>{
- assert.ok(html.includes('administrativeReview?.cases'));
- assert.match(html,/review\.caseId/);
+test('public dashboard never exposes restricted administrative dossier IDs',()=>{
+ assert.equal(html.includes('administrativeReview?.cases'),false);
+ assert.equal(html.includes('review.caseId'),false);
+ assert.match(html,/Dossiês detalhados restritos ao acesso administrativo/);
  assert.match(html,/Aprovação administrativa indisponível/);
  assert.match(html,/Nenhuma ordem gerada e nenhuma posição desbloqueada/);
 });
