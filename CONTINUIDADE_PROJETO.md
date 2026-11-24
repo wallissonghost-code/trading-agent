@@ -208,3 +208,23 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 - **Publicação/testes**: verificar o último workflow GitHub e o último deploy Render; estavam em andamento na consulta inicial. Não registrar sucesso até confirmar.
 
 **Pendência estrutural:** a coleta paper baseada no timer do processo web Render free não é 24/7. Não usar pings artificiais para simular produção contínua. Alternativas futuras dependem de uma mudança explícita de infraestrutura/custos ou arquitetura de coleta dirigida por eventos, sem retrocriar candles perdidos.
+
+
+## 15. Continuidade segura após hibernação — 24/11/2026
+
+**Problema real:** a aplicação web gratuita no Render pode parar de executar timers e perder várias velas de cinco minutos. Antes desta mudança o motor `processCandle` podia avançar diretamente do último candle antigo para o mais recente, ocultando o intervalo não observado e simulando execução sem histórico completo.
+
+**Implementação no branch `trading-agent-v2`:**
+- `66ead5f` em `trading-v2/paper.js`: ao detectar salto maior que um intervalo de 5 minutos por mercado, grava `dataGaps` no snapshot persistido e toma uma decisão `WAIT` (sem compra ou venda simulada) na primeira vela da retomada. Se há posição virtual aberta, grava `gapLocks` e mantém a posição em quarentena nas próximas velas, evitando preenchimentos hipotéticos de stop e alvo para períodos não observados. Preserva capital, trades e versão de esquema `schema:1`, com compatibilidade retroativa de estados antigos.
+- `9eba00c`: testes de lacuna, não preenchimento fictício, trava persistente entre reinícios e migração retrocompatível.
+- `c62c362`: `/api/agent-diagnostics` informa `gapLocked`, `lastGap`, estado `LACUNA_HISTORICA` e saúde agregada `GAP_LOCK`; coleta de fato atrasada continua priorizada como `STALE`.
+- `3a5fcc2`: testes do diagnóstico de quarentena.
+- `a5139f6`: sala visual exibe aviso específico, motivo `DATA_GAP_POSITION_LOCK` e risco de intervalos perdidos.
+- `14eb6d3`: teste da apresentação do bloqueio.
+- `1c36d75`: explica os limites no README e a necessidade de reconciliação antes de retirar a trava.
+
+**Testes comprovados:** GitHub Actions `45489008161`, commit `14eb6d34c41c725929fb27e4e0e44a1bcda35e55`: **147 testes aprovados, 0 falhas, 0 ignorados**, com validação de sintaxe. Link: https://github.com/wallissonghost-code/trading-agent/actions/runs/45489008161 . As alterações posteriores a esse commit são documentais; devem ter seu deploy final confirmado no Render.
+
+**Atenção para a operação:** trancar uma posição virtual cuja trajetória não foi totalmente observada é uma escolha conservadora e deliberada. Não desbloquear, eliminar ou liquidar a posição sem definir procedimento de reconciliação. Os dados históricos e a carteira persistente não são resetados. Este mecanismo não restaura candles nem cria simulações retrospectivas de execução.
+
+**Pendência de infraestrutura:** plano Render gratuito continua sujeito à hibernação; a proteção de lacunas não garante execução 24/7. É necessário consultar status de deploy e logs antes de afirmar estabilidade da última versão.
