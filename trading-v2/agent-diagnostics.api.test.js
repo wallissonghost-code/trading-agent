@@ -29,14 +29,15 @@ test('HTTP diagnostics remains read-only, per-agent and separately identifiable 
    await nap(100);
   }
   assert.equal(ready,true,'API must start before its HTTP status can be validated');
-  const [diagnosticsResponse,mockResponse,paperResponse,reconciliationResponse]=await Promise.all([
-   fetch(url+'/api/agent-diagnostics'),fetch(url+'/api/status'),fetch(url+'/api/paper'),fetch(url+'/api/gap-reconciliation')
+  const [diagnosticsResponse,mockResponse,paperResponse,reconciliationResponse,evidenceResponse]=await Promise.all([
+   fetch(url+'/api/agent-diagnostics'),fetch(url+'/api/status'),fetch(url+'/api/paper'),fetch(url+'/api/gap-reconciliation'),fetch(url+'/api/paper-evidence')
   ]);
   assert.equal(diagnosticsResponse.status,200);
   assert.equal(mockResponse.status,200);
   assert.equal(paperResponse.status,200);
   assert.equal(reconciliationResponse.status,200);
-  const [d,m,p,g]=await Promise.all([diagnosticsResponse.json(),mockResponse.json(),paperResponse.json(),reconciliationResponse.json()]);
+  assert.equal(evidenceResponse.status,200);
+  const [d,m,p,g,evidence]=await Promise.all([diagnosticsResponse.json(),mockResponse.json(),paperResponse.json(),reconciliationResponse.json(),evidenceResponse.json()]);
   assert.equal(d.mode,'PAPER_ONLY');
   assert.equal(d.realOrdersEnabled,false);
   assert.equal(d.source,'paper_runner_snapshot');
@@ -45,6 +46,11 @@ test('HTTP diagnostics remains read-only, per-agent and separately identifiable 
   assert.equal(m.dataSource,'synthetic');
   assert.equal(p.mode,'PAPER_ONLY');
   assert.equal(p.executionEnabled,false);
+  assert.equal(evidence.mode,'PAPER_EVIDENCE_DIAGNOSTICS');
+  assert.equal(evidence.realOrdersEnabled,false);
+  assert.equal(evidence.noAutoHostingUpgrade,true);
+  assert.equal(evidence.results.length,3);
+  assert.ok(evidence.results.every(x=>x.readyForLiveTrading===false));
   assert.equal(g.mode,'PAPER_ONLY');
   assert.equal(g.lockedCount,0);
   assert.equal(g.automaticUnlockEnabled,false);
