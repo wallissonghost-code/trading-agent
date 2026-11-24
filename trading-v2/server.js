@@ -11,6 +11,7 @@ import { runWalkForward } from './walk-forward.js';
 import { diagnoseStrategyLosses } from './loss-diagnostics.js';
 import { compareCooldowns } from './cooldown-research.js';
 import { compareEntryFilters } from './entry-filter-research.js';
+import { buildForwardObservation, summarizeForwardStudy } from './forward-study.js';
 import { auditWalkForwardReports } from './research-audit.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
 import { evaluateHeadlineImpact, summarizeHeadlineImpacts } from './news-impact.js';
@@ -212,6 +213,62 @@ function getNewsImpactStatus(){
  return {ok:impactState.status!=='error',mode:'NEWS_RESEARCH_ONLY',newsTradingEnabled:false,
   autoPromotionEnabled:false,orderExecutionEnabled:false,...impactState};
 }
+// Frozen prospective research: one latest closed candle per market, collected ONLY after
+// the freeze timestamp. DB scores a signal only from its first full future candle.
+// Never call the paper execution engine or Binance order endpoints from this worker.
+let forwardConfig=null,forwardCollectionPromise=null,forwardLastRun=0;
+let forwardCaptureState={lastCheckedAt:null,newObservations:0,sources:[],error:null};
+async function runForwardCapture(){
+ if(!paperStore?.getFrozenForwardStudy||!paperStore?.insertForwardObservation)
+  return {ok:false,reason:'Private prospective archive not configured'};
+ if(forwardCollectionPromise)return forwardCollectionPromise;
+ if(Date.now()-forwardLastRun<60000)return {ok:true,cached:true};
+ forwardLastRun=Date.now();
+ forwardCollectionPromise=(async()=>{
+  if(!forwardConfig)forwardConfig=await paperStore.getFrozenForwardStudy();
+  const captured=await Promise.all(SYMBOLS.map(async symbol=>{
+   try{
+    const market=await getKlines(symbol,{limit:100});
+    const snapshot=buildForwardObservation(market.candles,{symbol,studyStartedAt:forwardConfig.started_at});
+    if(snapshot.status!=='ready')return {symbol,status:snapshot.status};
+    const inserted=await paperStore.insertForwardObservation(snapshot);
+    return {symbol,status:inserted?'recorded':'already_recorded'};
+   }catch(err){
+    console.error('Prospective study:',symbol,String(err.message||err).slice(0,150));
+    return {symbol,status:'error'};
+   }
+  }));
+  forwardCaptureState={lastCheckedAt:new Date().toISOString(),newObservations:captured.filter(x=>x.status==='recorded').length,
+   sources:captured,error:null};
+  return {ok:captured.some(x=>x.status!=='error'),sources:captured};
+ })();
+ try{return await forwardCollectionPromise;}
+ catch(error){
+  forwardCaptureState={...forwardCaptureState,error:'A coleta prospectiva não está disponível'};
+  console.error('Forward study setup failed:',String(error.message||error).slice(0,130));
+  return {ok:false,reason:'Cannot initialize frozen study'};
+ }finally{forwardCollectionPromise=null;}
+}
+async function getForwardSnapshot(){
+ if(!paperStore?.getFrozenForwardStudy||!paperStore?.listForwardOutcomes)
+  return {ok:false,mode:'PROSPECTIVE_OBSERVATION',error:'Supabase não configurado'};
+ // Initiate collection but don't block mobile clients on the public market feeds.
+ void runForwardCapture();
+ try{
+  if(!forwardConfig)forwardConfig=await paperStore.getFrozenForwardStudy();
+  const [observations,outcomes]=await Promise.all([
+   paperStore.listForwardObservations({limit:360}),
+   paperStore.listForwardOutcomes({limit:900})
+  ]);
+  return {ok:true,...summarizeForwardStudy({study:forwardConfig,observations,outcomes}),
+   collected:forwardCaptureState,latestObservationsPartial:observations.length===360,
+   latestOutcomesPartial:outcomes.length===900,source:'supabase'};
+ }catch(error){
+  console.error('Prospective read failed:',String(error.message||error).slice(0,140));
+  return {ok:false,mode:'PROSPECTIVE_OBSERVATION',error:'Estudo futuro temporariamente indisponível',
+   autoPromotionEnabled:false,realOrdersEnabled:false};
+ }
+}
 const server=http.createServer(async(req,res)=>{
 const path=new URL(req.url||'/', 'http://localhost').pathname;
 if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'allow':'GET, HEAD'});return res.end();}
@@ -241,6 +298,7 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
+else if(path==='/api/forward-study')data=await getForwardSnapshot();
 else if(path==='/api/entry-filter-research'){
   try{
    const rows=paperStore?.listResearchReports?await paperStore.listResearchReports({limit:15}):[];
@@ -350,6 +408,8 @@ res.end(req.method==='HEAD'?undefined:JSON.stringify(data));
 server.listen(PORT,'0.0.0.0',()=>console.log('trading-agent preview on '+PORT));
 // Best effort collection while a free-tier service is awake; Render can suspend idle instances.
 // Read-only research cannot change the paper runner or execute exchange orders.
+setTimeout(()=>void runForwardCapture(),45000).unref();
+setInterval(()=>void runForwardCapture(),90000).unref();
 setTimeout(()=>getNewsResearch().catch(err=>console.error('Scheduled news collection:',err.message)),30000).unref();
 setTimeout(()=>void getForwardStudy().catch(err=>console.error('Scheduled walk-forward research:',err.message)),25000).unref();
 setInterval(()=>void getForwardStudy().catch(err=>console.error('Scheduled walk-forward research:',err.message)),4*60*60*1000).unref();
