@@ -7,6 +7,28 @@ const round=(x,n=8)=>Number(x.toFixed(n));
 const fee=0.001;
 const maxPositions=2;
 const maxExposure=0.5;
+const candleIntervalMs=5*60*1000;
+const minContinuousPaperCandles=35;
+// A market feed can omit bars inside the indicator window even if its latest bar is fresh.
+// Fail closed before touching the account: never infer EMA/RSI/stops from a broken window.
+export function assertPaperCandleContinuity(candles,{required=minContinuousPaperCandles}={}){
+ if(!Array.isArray(candles)||candles.length<required)throw Error('Insufficient candles');
+ if(!Number.isInteger(required)||required<2)throw Error('Invalid continuity requirement');
+ const window=candles.slice(-required);
+ for(let i=0;i<window.length;i++){
+  const c=window[i];
+  if(!Number.isSafeInteger(c?.closeTime)||!Number.isSafeInteger(c?.time)||
+     ![c.open,c.high,c.low,c.close].every(Number.isFinite)||
+     c.low<=0||c.low>c.high||c.open<c.low||c.open>c.high||
+     c.close<c.low||c.close>c.high||
+     c.closeTime-c.time!==candleIntervalMs-1)
+   throw Error('Invalid paper market candle');
+  if(i>0&&(c.time-window[i-1].time!==candleIntervalMs||
+             c.closeTime-window[i-1].closeTime!==candleIntervalMs))
+   throw Error('Incomplete paper market candle window');
+ }
+ return true;
+}
 // Diagnostics only: this classifies why a paper order failed; it never changes sizing or limits.
 export const classifyPaperEntryBlock=({exposureBudget,minNotional=10})=>
  Number.isFinite(exposureBudget)&&exposureBudget<minNotional?'PORTFOLIO_EXPOSURE_LIMIT':'CAPITAL_OR_RISK_LIMIT';
@@ -25,6 +47,7 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
   const age=Date.parse(now)-c.closeTime;
   if(!Number.isFinite(age)||age<0||age>20*60*1000)throw new Error('Stale or future market candle');
   if(account.lastCandle[symbol]!==undefined&&c.closeTime<=account.lastCandle[symbol])return {processed:false,reason:'already_processed'};
+  assertPaperCandleContinuity(candles);
   account.dataGaps??={};
   account.gapLocks??={};
   account.lastDecisions??={};
@@ -158,7 +181,6 @@ export function createPaperRunner({path,store=null,fetchKlines=getKlines,clock=(
             // Never use unvalidated future/stale candles as price marks.
             const quoteAge=clock().getTime()-last.closeTime;
             if(!Number.isFinite(quoteAge)||quoteAge<0||quoteAge>20*60*1000)throw Error('Stale or future market candle');
-            quotes[symbol]=last.close;
             const before=account.lastCandle[symbol];
             const checkpoint=structuredClone(account);
             processCandle(account,symbol,candles,{now:clock().toISOString()});
@@ -166,6 +188,8 @@ export function createPaperRunner({path,store=null,fetchKlines=getKlines,clock=(
               try{await persistence.save(account);}
               catch(error){account=checkpoint;storageFault=String(error.message||error).slice(0,160);throw error;}
             }
+            // A market quote is visible only after a valid candle and any required durable save.
+            quotes[symbol]=last.close;
             delete account.lastError[symbol];
           }catch(err){
             account.lastError[symbol]=String(err.message||err).slice(0,180);
