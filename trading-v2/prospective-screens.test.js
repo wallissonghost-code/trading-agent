@@ -46,13 +46,13 @@ test('data completeness distinguishes waiting for a new candle from failed evalu
  const t=1795517699999;
  const obs=(time,reference)=>({symbol:'ETHUSDT',candle_close_time:time,
   observed_at:new Date(time).toISOString(),signals:{reference}});
- const x=summarizeScreenStudy({study,observations:[obs(t,true)],outcomes:[]});
+ const x=summarizeScreenStudy({study,observations:[obs(t,true)],outcomes:[],now:t+60000});
  assert.equal(x.bySymbol.ETHUSDT.scenarios.reference.awaitingNextCandle,1);
  assert.equal(x.bySymbol.ETHUSDT.scenarios.reference.unscoredWithNextCandle,0);
- const y=summarizeScreenStudy({study,observations:[obs(t,true),obs(t+300000,false)],outcomes:[]});
+ const y=summarizeScreenStudy({study,observations:[obs(t,true),obs(t+300000,false)],outcomes:[],now:t+360000});
  assert.equal(y.bySymbol.ETHUSDT.scenarios.reference.awaitingNextCandle,0);
  assert.equal(y.bySymbol.ETHUSDT.scenarios.reference.unscoredWithNextCandle,1);
- const z=summarizeScreenStudy({study,observations:[obs(t,true),obs(t+600000,false)],outcomes:[]});
+ const z=summarizeScreenStudy({study,observations:[obs(t,true),obs(t+600000,false)],outcomes:[],now:t+660000});
  assert.equal(z.bySymbol.ETHUSDT.gapIntervals,1);
  assert.equal(z.bySymbol.ETHUSDT.scenarios.reference.awaitingNextCandle,1);
  assert.equal(z.bySymbol.ETHUSDT.scenarios.reference.unscoredWithNextCandle,0);
@@ -93,4 +93,29 @@ test('stale capture and absent data are distinct from a broken trading strategy'
  assert.equal(old.bySymbol.ETHUSDT.freshness,'NO_OBSERVATIONS');
  assert.equal(old.bySymbol.ETHUSDT.coveragePct,null);
  assert.equal(old.realOrdersEnabled,false);
+});
+
+test('a complete historical series cannot disguise a suspended feed today',()=>{
+ const t=1795517699999;
+ const observations=[0,300000,600000].map(delta=>({symbol:'BTCUSDT',
+  candle_close_time:t+delta,observed_at:new Date(t+delta).toISOString(),
+  signals:{reference:false}}));
+ const result=summarizeScreenStudy({study,observations,outcomes:[],now:t+600000+60*60000});
+ const btc=result.bySymbol.BTCUSDT;
+ assert.equal(btc.coveragePct,100);
+ assert.equal(btc.trailingMissingSlots,12);
+ assert.equal(btc.expectedSlotsSinceFirst,15);
+ assert.equal(btc.coverageSinceFirstPct,20);
+ assert.equal(btc.freshness,'DELAYED');
+ assert.equal(result.realOrdersEnabled,false);
+});
+test('unevaluable signal after missed full candle is expired, not perpetually pending',()=>{
+ const t=1795517699999;
+ const observations=[{symbol:'SOLUSDT',candle_close_time:t,signals:{reference:true}}];
+ const result=summarizeScreenStudy({study,observations,outcomes:[],now:t+60*60000});
+ const ref=result.bySymbol.SOLUSDT.scenarios.reference;
+ assert.equal(ref.awaitingNextCandle,0);
+ assert.equal(ref.expiredWithoutNextCandle,1);
+ assert.equal(ref.scored,0);
+ assert.equal(ref.positiveOutcomes,0);
 });
