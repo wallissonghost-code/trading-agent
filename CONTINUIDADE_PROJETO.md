@@ -328,3 +328,22 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 **Publicação:** Render confirmou `ff6e16d` como `live` em `2026-11-24T22:02:16Z`; a publicação mais nova `4364df3` (somente testes) ainda estava em build e `07d7f3f` (somente documentação) estava enfileirada na primeira consulta. Confirmar o último deploy após o fim da fila.
 
 **Limites:** exigência de 35 candles consecutivos pode interromper decisões quando o feed de mercado tem buracos; é deliberado para impedir resultados artificiais. Não preenche dados retrospectivamente, não impede o Render Free de dormir, não modifica regras de risco e não garante rentabilidade.
+
+
+## 21. Diagnóstico de qualidade dos testes paper — 24/11/2026
+
+**Meta:** distinguir evidências de funcionamento da carteira paper das observações independentes dos estudos shadow, evitando confundir histórico recebido com execução virtual real.
+
+**Implementação (branch `trading-agent-v2`)**
+- `ffcf4b8`: novo módulo `trading-v2/paper-evidence.js`. Reúne estado persistido do motor paper (último candle por ativo, frescor, erros, posições, `gapLocks`, última lacuna), amostras recentes de trades e cobertura **independente** do coletor shadow 6h/24h. Detecta falta de evidência histórica, coleta atrasada e lacunas sem inferir uptime do Render. O diagnóstico não altera carteira, não habilita ordens reais, não compra hosting, nunca promove automaticamente estratégias.
+- `9ab35ff`: `trading-v2/paper-evidence.test.js` com 6 testes de integridade, indicadores incompletos, imutabilidade, diferença shadow versus paper e bloqueio de promoção.
+- `2f3d26b`: nova rota de leitura `GET /api/paper-evidence`, que consulta os relatórios existentes `getMonitoringTimeline()` e `getMonitoringCoverage()` e usa `paper.status()`, sem gravar observações falsas.
+- `fa3b9e6`: seção recolhível no painel **Qualidade do teste dos robôs • PAPER**, com cards por robô, últimos candles e ressalvas; atualiza quando a aba é aberta.
+- `7907a42`, `8a840bb`: testes de API e UI; `2ece0da` atualiza `navigation.test.js` para incluir o carregamento do novo diagnóstico. Houve falhas transitórias de CI devido à asserção de navegação antiga; todas corrigidas.
+- `63713aa`: documentação do significado e limites dos novos indicadores no README.
+
+**Evidência de testes:** CI run `45512566327` commit `2ece0da`: **182/182 testes passaram**, 0 falhas/ignorados, incluindo validação JS. URL https://github.com/wallissonghost-code/trading-agent/actions/runs/45512566327 .
+
+**Deploy confirmado:** Render `srv-dc28e4uc6qcc73eq0940` recebeu `2ece0da` como `live` em `2026-11-24T23:45:37Z`. O commit `63713aa` é somente documentação e estava em build no momento da consulta; conferir versão posterior se necessário. O plano de instância permanece **free**, sem contratação.
+
+**Limite principal:** a cobertura shadow não prova uptime do paper. Ainda não existe um diário paper com 7 dias completos de slots auditados; por isso o diagnóstico **não declara o projeto pronto para trading real nem justifica automaticamente a migração para US$ 7**. Próximo aperfeiçoamento: coletar e persistir slots reais do próprio motor paper, com tratamento de reinícios e lacunas, sem backfill retroativo.
