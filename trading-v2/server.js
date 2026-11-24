@@ -4,6 +4,7 @@ import { SYMBOLS, getKlines } from './market.js';
 import { createPaperRunner } from './paper.js';
 import { summarizePaperAgents } from './agent-diagnostics.js';
 import { summarizeGapReconciliation } from './gap-reconciliation.js';
+import { buildGapReviewPlan } from './gap-review-plan.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { performance } from './performance.js';
 import { summarizeSignalOutcomes } from './signal-evaluation.js';
@@ -541,7 +542,8 @@ else if(path==='/api/gap-reconciliation'){
    console.warn('Gap audit feed unavailable:',symbol,String(error.message||error).slice(0,80));
   }
  }));
- data=summarizeGapReconciliation(state,{marketBySymbol,errorsBySymbol});
+ const audit=summarizeGapReconciliation(state,{marketBySymbol,errorsBySymbol});
+ data={...audit,administrativeReview:buildGapReviewPlan(audit,state)};
 }
 
 else if(path==='/api/performance'){
