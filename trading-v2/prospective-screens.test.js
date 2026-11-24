@@ -119,3 +119,27 @@ test('unevaluable signal after missed full candle is expired, not perpetually pe
  assert.equal(ref.scored,0);
  assert.equal(ref.positiveOutcomes,0);
 });
+
+test('no qualifying entries is distinct from an offline robot',()=>{
+ const t=1795517699999;
+ const observation={symbol:'BTCUSDT',candle_close_time:t,observed_at:new Date(t).toISOString(),signals:{reference:false}};
+ const fresh=summarizeScreenStudy({study,observations:[observation],outcomes:[],now:t+60000});
+ const stale=summarizeScreenStudy({study,observations:[observation],outcomes:[],now:t+3600000});
+ assert.equal(fresh.bySymbol.BTCUSDT.diagnostic,'NO_ELIGIBLE_SIGNALS');
+ assert.equal(stale.bySymbol.BTCUSDT.diagnostic,'COLLECTION_DELAYED');
+ assert.equal(fresh.bySymbol.ETHUSDT.diagnostic,'NO_OBSERVATIONS');
+ assert.equal(fresh.autoPromotionEnabled,false);
+});
+test('missing observed evaluation and expired future opportunity receive distinct diagnostics',()=>{
+ const t=1795517699999;
+ const o=(offset,eligible)=>({symbol:'ETHUSDT',candle_close_time:t+offset,
+  observed_at:new Date(t+offset).toISOString(),signals:{reference:eligible}});
+ const next=summarizeScreenStudy({study,observations:[o(0,true)],outcomes:[],now:t+60000});
+ assert.equal(next.bySymbol.ETHUSDT.diagnostic,'WAITING_NEXT_CANDLE');
+ const broken=summarizeScreenStudy({study,observations:[o(0,true),o(300000,false)],outcomes:[],now:t+360000});
+ assert.equal(broken.bySymbol.ETHUSDT.diagnostic,'EVALUATION_MISSING');
+ const missed=summarizeScreenStudy({study,observations:[o(0,true),o(600000,false)],outcomes:[],now:t+720000});
+ assert.equal(missed.bySymbol.ETHUSDT.diagnostic,'WAITING_NEXT_CANDLE');
+ const expired=summarizeScreenStudy({study,observations:[o(0,true),o(600000,false)],outcomes:[],now:t+1200000});
+ assert.equal(expired.bySymbol.ETHUSDT.diagnostic,'RESULT_EXPIRED');
+});
