@@ -73,3 +73,13 @@ test('public dashboard never exposes restricted administrative dossier IDs',()=>
  assert.match(html,/Aprovação administrativa indisponível/);
  assert.match(html,/Nenhuma ordem gerada e nenhuma posição desbloqueada/);
 });
+
+
+test('paper test quality panel separates paper evidence from independent shadow research',()=>{
+ assert.match(html,/id="paperEvidencePanel"/);
+ assert.match(html,/id="paperEvidenceStatus"/);
+ assert.match(html,/api\/paper-evidence/);
+ assert.match(html,/PAPER_CANDLE_JOURNAL_7D_UNAVAILABLE/);
+ assert.match(html,/Dados shadow são contexto, não uptime do Render/);
+ assert.match(html,/sem liberação real/);
+});
