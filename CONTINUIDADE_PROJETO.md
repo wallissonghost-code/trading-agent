@@ -120,3 +120,11 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 **Próximos passos prioritários:** (1) executar `cd trading-v2 && npm test` e corrigir eventuais falhas; (2) testar `GET /api/agent-diagnostics` em deploy real e validar os três robôs em mobile; (3) revisar prioridades dos estados, especialmente casos de feed parado, banco indisponível e diferenças entre status do estudo prospectivo e paper runner; (4) auditar deploy, rotina Render e persistência; (5) confirmar que NOVA apresenta o motivo verificável para não abrir operações.
 
 **Limite importante:** as categorias `AGUARDANDO_CANDLE` e `AVALIACAO_PENDENTE` são próprias do estudo prospectivo; o novo endpoint atual distingue estados comprováveis do **motor paper** e não os inventa a partir de ausência de operações.
+
+### Continuação da validação em 2026-11-24
+- Conferência do status GitHub do commit `e38587d`: verificação de integração Vercel retornou **success**. Isso não comprova por si só que os endpoints ou interfaces funcionam no serviço publicado.
+- `trading-v2/index.html`: commit `f70fdc9` adiciona comentário de segurança na leitura de diagnóstico de erros. Não foi executado teste de frontend nesta sessão.
+- `.github/workflows/trading-v2-tests.yml`: commit `7f6d811` cria workflow para rodar `npm test` em alterações de `trading-v2/**` e execução manual. **Resultado da execução ainda não verificado:** nenhuma execução retornada na consulta inicial após o commit.
+- Consulta à API Vercel para listar deploys foi negada com HTTP 403. Não afirmar confirmação da versão em produção com base somente no status anterior.
+- Render exigiu seleção explícita de workspace e, portanto, **não foram inspecionados serviços nem logs**.
+- **Próxima ação**: consultar resultado do workflow novo, investigar falhas se existirem; verificar URL oficial do deploy e estado em tempo real de `/api/agent-diagnostics`, principalmente NOVA; auditar persistência e coleta do Render após seleção do workspace pelo usuário.
