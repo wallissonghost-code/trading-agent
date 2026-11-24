@@ -116,3 +116,15 @@ test('read-only rule and risk explanation is collapsed in Strategies and does no
  assert.match(script,/\$\('researchRiskPanel'\)\.addEventListener\('toggle'/);
  assert.doesNotThrow(()=>new Function(script));
 });
+
+test('NOVA paper decision diagnostics are derived from persisted per-symbol decisions',()=>{
+ const panel=html.slice(html.indexOf('id="view-painel"'),html.indexOf('id="view-operacoes"'));
+ assert.match(panel,/id="paperAgentDecisionPanel"/);
+ assert.match(panel,/id="paperAgentDecisions"/);
+ const script=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+ assert.match(script,/const decisions=p\?\.lastDecisions\|\|\{\}/);
+ assert.match(script,/NOVA • ETH/);
+ assert.match(script,/EMA_TREND_NOT_BULLISH/);
+ assert.match(script,/RSI_OUTSIDE_BUY_RANGE/);
+ assert.doesNotThrow(()=>new Function(script));
+});
