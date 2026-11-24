@@ -5,6 +5,22 @@ import {FILTER_SCENARIOS} from './entry-filter-research.js';
 export const FORWARD_VERSION='filters-v1-20261124';
 export const FORWARD_KEYS=Object.freeze(FILTER_SCENARIOS.map(s=>s.key));
 const INTERVAL_MS=300000;
+// Fail closed if a later deployment accidentally changes any frozen parameters.
+export function verifyFrozenForwardConfig(study){
+ if(study?.version!==FORWARD_VERSION||!Number.isFinite(Date.parse(study.started_at))||
+    Number(study.horizon_minutes)!==5||Number(study.fees_bps)!==10||Number(study.slippage_bps)!==5)
+  throw Error('Frozen study version or cost assumption mismatch');
+ const actual=study.configs;
+ if(!actual||Object.keys(actual).length!==FORWARD_KEYS.length)throw Error('Frozen study scenario set mismatch');
+ for(const item of FILTER_SCENARIOS){
+  const expected={...item.filters,rsiMin:55,rsiMax:65};
+  const got=actual[item.key];
+  if(!got||Object.keys(got).length!==Object.keys(expected).length||
+     Object.entries(expected).some(([name,value])=>Number(got[name])!==value))
+   throw Error('Frozen study parameter drift: '+item.key);
+ }
+ return true;
+}
 export function buildForwardObservation(candles,{symbol,now=Date.now(),studyStartedAt}={}){
  if(!['BTCUSDT','ETHUSDT','SOLUSDT'].includes(symbol))throw Error('Invalid forward study symbol');
  const started=Date.parse(studyStartedAt);
