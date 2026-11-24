@@ -11,7 +11,7 @@ import { runWalkForward } from './walk-forward.js';
 import { diagnoseStrategyLosses } from './loss-diagnostics.js';
 import { compareCooldowns } from './cooldown-research.js';
 import { compareEntryFilters } from './entry-filter-research.js';
-import { buildForwardObservation, summarizeForwardStudy } from './forward-study.js';
+import { buildForwardObservation, summarizeForwardStudy, verifyFrozenForwardConfig } from './forward-study.js';
 import { auditWalkForwardReports } from './research-audit.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
 import { evaluateHeadlineImpact, summarizeHeadlineImpacts } from './news-impact.js';
@@ -225,7 +225,11 @@ async function runForwardCapture(){
  if(Date.now()-forwardLastRun<60000)return {ok:true,cached:true};
  forwardLastRun=Date.now();
  forwardCollectionPromise=(async()=>{
-  if(!forwardConfig)forwardConfig=await paperStore.getFrozenForwardStudy();
+  if(!forwardConfig){
+   const frozen=await paperStore.getFrozenForwardStudy();
+   verifyFrozenForwardConfig(frozen);
+   forwardConfig=frozen;
+  }
   const captured=await Promise.all(SYMBOLS.map(async symbol=>{
    try{
     const market=await getKlines(symbol,{limit:100});
@@ -255,7 +259,11 @@ async function getForwardSnapshot(){
  // Initiate collection but don't block mobile clients on the public market feeds.
  void runForwardCapture();
  try{
-  if(!forwardConfig)forwardConfig=await paperStore.getFrozenForwardStudy();
+  if(!forwardConfig){
+   const frozen=await paperStore.getFrozenForwardStudy();
+   verifyFrozenForwardConfig(frozen);
+   forwardConfig=frozen;
+  }
   const [observations,outcomes]=await Promise.all([
    paperStore.listForwardObservations({limit:360}),
    paperStore.listForwardOutcomes({limit:900})
