@@ -389,7 +389,7 @@ function renderRobots(p){
   const unrealized=Number(position?.unrealizedPnl||0),result=realized+unrealized;
   const value=available?signed(result):'—';
   const diag=latestAgentDiagnostics?.agents?.find(x=>x.symbol===r.symbol);
-  const status=diag?({OPERANDO:'OPERANDO (PAPER)',AGUARDANDO_SINAL:'AGUARDANDO SINAL',COLETA_ATRASADA:'COLETA ATRASADA',SEM_DADOS:'SEM DADOS',ERRO:'FALHA DETECTADA',PAUSADO:'PAUSADO'}[diag.state]||diag.state):'DIAGNÓSTICO INDISPONÍVEL';
+  const status=diag?({OPERANDO:'OPERANDO (PAPER)',AGUARDANDO_SINAL:'AGUARDANDO SINAL',COLETA_ATRASADA:'COLETA ATRASADA',SEM_DADOS:'SEM DADOS',ERRO:'FALHA DETECTADA',PAUSADO:'PAUSADO',LACUNA_HISTORICA:'LACUNA DE DADOS'}[diag.state]||diag.state):'DIAGNÓSTICO INDISPONÍVEL';
   const signal=diag?.reason||(!available?'Aguardando carteira':'Aguardando diagnóstico');
   const detail=diag?.lastCandleCloseAt?'Último candle: '+new Date(diag.lastCandleCloseAt).toLocaleString('pt-BR'): 'Último candle: indisponível';
   return '<article class="agent-card '+['alpha','nova','orion'][i]+'"><div class="agent-art"><img src="'+r.art+'" alt="Ilustração do robô '+r.name+' na mesa de operações" decoding="async" loading="lazy" onerror="this.closest(\'.agent-art\').classList.add(\'art-error\')"></div>'+
@@ -407,6 +407,8 @@ function renderAgentPaperDecisions(p){
  const reason={EMA_TREND_NOT_BULLISH:'EMA9 não está acima da EMA21',RSI_OUTSIDE_BUY_RANGE:'RSI fora da faixa de compra (50–70)',
   MAX_OPEN_POSITIONS:'Limite de 2 posições virtuais abertas',CAPITAL_OR_RISK_LIMIT:'Capital ou orçamento de risco insuficiente',
   PORTFOLIO_EXPOSURE_LIMIT:'Limite de 50% do patrimônio virtual em posições atingido',
+  DATA_GAP_RESUMED:'Candles perdidos durante pausa: primeira vela sem operação simulada',
+  DATA_GAP_POSITION_LOCK:'Posição preservada: execução paper bloqueada por lacuna histórica',
   PORTFOLIO_DRAWDOWN_LOCK:'Carteira atingiu bloqueio por queda de 5%',POSITION_OPEN:'Posição virtual já aberta',
   EMA_RSI_WATCH_LONG:'Entrada virtual efetuada',STOP_LOSS:'Saída simulada por stop',TAKE_PROFIT:'Saída simulada no alvo',NO_NEW_ENTRY:'Nenhuma nova entrada'};
  const decisions=p?.lastDecisions||{};
@@ -435,10 +437,12 @@ function renderPaper(p){
  const stale=diag?.agents?.filter(a=>a.state==='COLETA_ATRASADA')||[];
  const failed=diag?.agents?.filter(a=>a.state==='ERRO')||[];
  const missing=diag?.agents?.filter(a=>a.state==='SEM_DADOS')||[];
+ const locked=diag?.agents?.filter(a=>a.gapLocked)||[];
  if(!diag){warning.textContent='Diagnóstico da coleta indisponível. Os valores exibidos podem estar desatualizados.';}
  else if(failed.length){warning.textContent='Falha de coleta ou persistência: '+failed.map(a=>a.name).join(', ')+'. Histórico virtual não equivale a atividade atual.';}
- else if(stale.length){warning.textContent='Coleta atrasada: '+stale.map(a=>a.name+' ('+(a.ageSeconds===null?'idade desconhecida':Math.floor(a.ageSeconds/60)+' min sem candle novo')+')').join(', ')+'. No plano gratuito o servidor pode hibernar; não há garantia de execução 24h.';}
+ else if(stale.length){warning.textContent='Coleta atrasada: '+stale.map(a=>a.name+' ('+(a.ageSeconds===null?'idade desconhecida':Math.floor(a.ageSeconds/60)+' min sem candle novo')+')').join(', ')+'. '+(locked.length?'Posições protegidas contra preenchimentos fictícios após lacunas: '+locked.map(a=>a.name).join(', ')+'. ':'')+'No plano gratuito o servidor pode hibernar; não há garantia de execução 24h.';}
  else if(missing.length){warning.textContent='Aguardando dados confirmados de '+missing.map(a=>a.name).join(', ')+'. Nenhuma decisão foi inventada.';}
+ else if(locked.length){warning.textContent='Lacuna histórica: '+locked.map(a=>a.name+' ('+(a.lastGap?.missedCandles??'?')+' candles perdidos)').join(', ')+'. Posição paper preservada, com execução bloqueada até reconciliação; histórico não foi fabricado.';}
  else if(diag.collectionHealth==='CURRENT'){warning.textContent='Candles recentes confirmados para os três robôs. Operações apenas em simulação; a coleta pode parar se o servidor hibernar.';}
  else {warning.textContent='Estado da coleta não verificado. Não presuma monitoramento contínuo.';}
  renderRobots(p);
@@ -453,7 +457,8 @@ function renderPaper(p){
  const healthStates=latestAgentDiagnostics?.agents?.map(a=>a.state)||[];
  const feedFault=healthStates.some(state=>state==='ERRO');
  const feedStale=healthStates.some(state=>state==='COLETA_ATRASADA'||state==='SEM_DADOS');
- $('mode').textContent=p.storageError||feedFault?'PAPER COM FALHAS':feedStale?'COLETA ATRASADA':healthStates.length===3?'PAPER ONLINE':'STATUS NÃO VERIFICADO';
+ const gapQuarantine=healthStates.some(state=>state==='LACUNA_HISTORICA')||latestAgentDiagnostics?.agents?.some(a=>a.gapLocked);
+ $('mode').textContent=p.storageError||feedFault?'PAPER COM FALHAS':feedStale?'COLETA ATRASADA':gapQuarantine?'LACUNA / POSIÇÃO PROTEGIDA':healthStates.length===3?'PAPER ONLINE':'STATUS NÃO VERIFICADO';
  const total=Number(p.equity)-Number(p.startingCash||10000);
  $('capital').textContent=usd(p.equity);
  $('pnl').textContent=signed(total);
