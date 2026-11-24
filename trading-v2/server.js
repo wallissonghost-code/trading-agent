@@ -2,6 +2,7 @@ import http from 'node:http';
 import { analyze, generateMockCandles } from './engine.js';
 import { SYMBOLS, getKlines } from './market.js';
 import { createPaperRunner } from './paper.js';
+import { summarizePaperAgents } from './agent-diagnostics.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { performance } from './performance.js';
 import { summarizeSignalOutcomes } from './signal-evaluation.js';
@@ -525,6 +526,7 @@ else if(path==='/api/status')data=payload();
 else if(path==='/api/agents')data={ok:true,simulated:true,agents};
 else if(path==='/api/market')data={ok:true,dataSource:'synthetic',prices};
 else if(path==='/api/paper')data={ok:paperInitError===null, ...paper.status(),error:paperInitError};
+else if(path==='/api/agent-diagnostics')data=summarizePaperAgents({...paper.status(),ready:paperInitError===null&&paper.status().ready});
 else if(path==='/api/performance'){
   try{
     const recent=paperStore?.listTrades?await paperStore.listTrades({limit:100}):paper.status().trades||[];
