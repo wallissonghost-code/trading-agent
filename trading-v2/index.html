@@ -217,6 +217,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 .future-study-variant>div:first-child{grid-column:1/-1}}
 .shadow-risk-card{padding:12px 0;border-top:1px solid #29445a;min-width:0}.shadow-risk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}.shadow-risk-grid>div{padding:11px;border:1px solid #304c65;border-radius:10px;background:#08192b;min-width:0}.shadow-risk-grid span{display:block;color:#9eb5c8;font-size:10px;line-height:1.35}.shadow-risk-grid strong{display:block;font-size:14px;margin-top:6px;overflow-wrap:anywhere}@media(max-width:720px){.shadow-risk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:380px){.shadow-risk-grid{grid-template-columns:minmax(0,1fr)}}
 .health-robots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.health-robot-card{padding:13px;border:1px solid #35536a;border-radius:12px;background:#0a1b2e;min-width:0}.health-state{font-size:11px;font-weight:700;border-radius:99px;padding:5px 8px;white-space:normal}.health-ok{background:#144537;color:#c3f6df}.health-warning{background:#4f3220;color:#ffdeb2}.health-robot-meta{display:grid;gap:6px;margin-top:10px;font-size:11px;color:#9cbbcf}.health-error{font-size:11px;color:#ffc09a;margin:5px 0 0}@media(max-width:800px){.health-robots{grid-template-columns:minmax(0,1fr)}}
+.monitor-alerts-details{margin:12px 0;padding:11px;border:1px solid #32506a;border-radius:12px;background:#07182b}.monitor-alerts-details>summary{cursor:pointer;line-height:1.5;font-size:13px}.monitor-alerts-rows{max-height:300px;overflow-y:auto}.monitor-alert-event{padding:10px 3px;border-top:1px solid #29435c;display:grid;gap:6px;font-size:12px}.monitor-alert-event>div{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.monitor-alert-event small{font-size:11px;color:#9bb4c6}.monitor-alert-type{padding:3px 7px;border-radius:9px;font-size:11px;font-weight:700}.alert-recovered{color:#b3edce;background:#154334}.alert-problem{color:#ffd4ad;background:#58331e}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Trading Agent V2">
@@ -235,7 +236,14 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
  <p class="muted" style="font-size:12px">Confere a coleta prospectiva de candles de BTC, ETH e SOL. Não confunde ausência de sinal com falha na conexão. A saúde da carteira virtual é exibida separadamente.</p>
  <p id="monitorHealthStatus" class="history-totals" aria-live="polite">Consultando os três mercados...</p>
  <div class="health-robots" id="monitorHealthRobots"></div>
- <p id="monitorHealthNote" class="performance-note">O Render gratuito pode suspender o servidor quando inativo. Dados atrasados serão sinalizados em vez de preenchidos retroativamente.</p>
+ <details class="monitor-alerts-details" id="monitorAlertsPanel">
+ <summary><strong>Histórico de alertas e recuperações</strong><span class="muted" id="monitorAlertsSummary"> • Consultar ocorrências</span></summary>
+ <div class="between" style="margin:12px 0 8px;gap:8px;flex-wrap:wrap"><p class="muted" style="font-size:12px;margin:0">Registros persistentes de atrasos, erros e retorno à normalidade.</p><button id="refreshMonitorAlerts" type="button">Atualizar histórico</button></div>
+ <p id="monitorAlertsStatus" class="muted" style="font-size:12px">Histórico ainda não carregado.</p>
+ <div id="monitorAlertsRows" class="monitor-alerts-rows"></div>
+ <p class="muted" style="font-size:11px">O serviço gratuito pode dormir. Não é possível garantir a hora de início de uma indisponibilidade durante sua suspensão; o histórico reflete somente as verificações realizadas.</p>
+</details>
+<p id="monitorHealthNote" class="performance-note">O Render gratuito pode suspender o servidor quando inativo. Dados atrasados serão sinalizados em vez de preenchidos retroativamente.</p>
 </section>
 <section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Cotações públicas da Binance. Os resultados dos robôs vêm exclusivamente da carteira virtual, sem execução de ordens.</p></section>
 <section class="metrics" aria-label="Indicadores simulados"><div class="metric"><span>CAPITAL SIMULADO</span><strong id="capital">$ 10.000,00</strong></div><div class="metric"><span>RESULTADO TOTAL SIMULADO</span><strong id="pnl" class="positive">+$ 0,00</strong></div><div class="metric"><span>ROBÔS EM MONITORAMENTO</span><strong>03</strong></div><div class="metric"><span>ORDENS REAIS</span><strong>0</strong></div></section>
@@ -403,6 +411,30 @@ async function refreshTradeHistory(){
 
 let forwardStudyTimer=null;
 let impactRefreshTimeout=null;
+async function refreshMonitorAlerts(){
+ const button=$('refreshMonitorAlerts'),status=$('monitorAlertsStatus'),root=$('monitorAlertsRows'),summary=$('monitorAlertsSummary');
+ button.disabled=true;
+ try{
+  const response=await fetch('/api/monitor-alerts',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const report=await response.json();
+  if(!report.ok)throw Error(report.error||'Registros indisponíveis');
+  const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const labels={ISSUE_STARTED:'Problema detectado',ISSUE_CHANGED:'Tipo de problema mudou',RECOVERED:'Coleta recuperada'};
+  const states={MONITORING:'Normal',STALE_DATA:'Atrasada',COLLECTION_ERROR:'Falha',AWAITING_COLLECTION:'Inicializando'};
+  summary.textContent=' • '+(report.events||[]).length+' eventos recentes';
+  status.textContent='Últimos '+(report.events||[]).length+' eventos armazenados • Não há alerta por ausência normal de sinal';
+  root.innerHTML=(report.events||[]).length?(report.events||[]).map(ev=>{
+    const when=Date.parse(ev.recorded_at);
+    return '<div class="monitor-alert-event"><div><strong>'+esc(names[ev.symbol]||ev.symbol)+'</strong> <span class="monitor-alert-type '+(ev.kind==='RECOVERED'?'alert-recovered':'alert-problem')+'">'+esc(labels[ev.kind]||ev.kind)+'</span></div>'+
+     '<small>'+esc(states[ev.previous_status]||'Início')+' → '+esc(states[ev.new_status]||'Desconhecido')+
+     ' • '+(Number.isFinite(when)?new Date(when).toLocaleString('pt-BR'):'Data indisponível')+'</small></div>';
+  }).join(''):'<p class="muted" style="font-size:12px">Ainda não há incidentes registrados. A ausência de eventos não comprova disponibilidade contínua.</p>';
+ }catch(error){
+  status.textContent='Não foi possível consultar o histórico: '+error.message;
+  root.innerHTML='';
+ }finally{button.disabled=false;}
+}
 async function refreshMonitorHealth(){
  const status=$('monitorHealthStatus'),root=$('monitorHealthRobots'),button=$('refreshMonitorHealth'),note=$('monitorHealthNote');
  button.disabled=true;
@@ -816,6 +848,7 @@ $('refreshEntryFilters').addEventListener('click',refreshEntryFilters);
 $('refreshForwardStudy').addEventListener('click',refreshForwardStudy);
 $('refreshShadowTrades').addEventListener('click',refreshShadowTrades);
 $('refreshMonitorHealth').addEventListener('click',refreshMonitorHealth);
+$('refreshMonitorAlerts').addEventListener('click',refreshMonitorAlerts);
 // Hash-addressable tabs preserve mobile navigation and back/forward without extra page loads.
 const WORKSPACES=['painel','operacoes','estrategias','noticias','auditoria'];
 let activeWorkspace=null;
@@ -836,7 +869,7 @@ function openWorkspace(key,{scroll=true}={}){
  if(scroll)window.scrollTo({top:0,behavior:'auto'});
  if(!visitedWorkspaces.has(selected)){
   visitedWorkspaces.add(selected);
-  if(selected==='painel'){void sync();void refreshMonitorHealth();}
+  if(selected==='painel'){void sync();void refreshMonitorHealth();void refreshMonitorAlerts();}
   if(selected==='operacoes')void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
   if(selected==='estrategias'){
    void refreshShadowTrades();
@@ -850,6 +883,7 @@ function openWorkspace(key,{scroll=true}={}){
   if(selected==='auditoria'){void refreshResearchAudit();void refreshLossDiagnostics();}
  }else if(selected==='painel'){
   void refreshMonitorHealth();
+  void refreshMonitorAlerts();
  }else if(selected==='operacoes'){
   void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
  }else if(selected==='estrategias'){
@@ -879,6 +913,7 @@ renderRobots(null);
 openWorkspace(decodeURIComponent(location.hash.slice(1)),{scroll:false});
 setInterval(()=>{if(activeWorkspace==='estrategias'){void refreshForwardStudy();void refreshShadowTrades();}},120000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshMonitorHealth();},60000);
+setInterval(()=>{if(activeWorkspace==='painel'&&$('monitorAlertsPanel').open)void refreshMonitorAlerts();},90000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshPaper();},15000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshRealMarket();},60000);
 setInterval(()=>{if(activeWorkspace==='operacoes'){
