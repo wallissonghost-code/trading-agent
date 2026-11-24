@@ -313,3 +313,18 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 - Não contratar sem autorização expressa para o valor e aceitar que Starter evita idle sleep, mas não garante 100% de uptime.
 
 **Próxima etapa:** validar último deploy e saúde dos dados; decidir upgrade somente se o usuário autorizar o custo explicitamente. Implementar eventual painel administrativo com autenticação multiusuário e auditoria transacional antes de qualquer ação de mutação.
+
+
+## 20. Proteção contra candles incompletos e marcas não persistidas — 24/11/2026
+
+**Contexto:** o plano Render Free permanece em uso, sujeito à hibernação. Consulta Supabase `2026-11-24T22:01:28Z` mostrou snapshot atualizado há menos de um minuto, `gapLocks={}`, `dataGaps={}`, `lastError={}` e posição paper BTCUSDT ainda aberta. Não iniciar ordem real ou contratar hospedagem.
+
+**Implementação concluída**
+- Commit `ff6e16d` em `trading-v2/paper.js`: nova função `assertPaperCandleContinuity` recusa janela irregular dos últimos 35 candles com validação de OHLC, timestamps e incrementos exatos de cinco minutos. É aplicada antes da primeira mutação da conta e antes de avaliar a estratégia, impedindo operações sobre feed parcial não identificado. A diferença entre o último candle persistido e a próxima janela válida permanece sujeita aos bloqueios de lacuna já existentes.
+- Mesmo commit: o runner só atualiza `quotes[symbol]` **depois** de validar a vela e confirmar a gravação necessária. Erros de persistência restauram estado anterior e preservam o preço confirmado na exposição de patrimônio.
+- Commit `4364df3` em `trading-v2/paper.test.js`: testes adicionais de candles internos ausentes, OHLC inválido, intervalos adulterados, sequência correta e rollback de preços sem gravação durável. CI run `45496937200` confirmou **175 testes aprovados, zero falhas, zero ignorados**: https://github.com/wallissonghost-code/trading-agent/actions/runs/45496937200 .
+- Commit `07d7f3f` atualiza `trading-v2/README.md` com o comportamento fail-closed.
+
+**Publicação:** Render confirmou `ff6e16d` como `live` em `2026-11-24T22:02:16Z`; a publicação mais nova `4364df3` (somente testes) ainda estava em build e `07d7f3f` (somente documentação) estava enfileirada na primeira consulta. Confirmar o último deploy após o fim da fila.
+
+**Limites:** exigência de 35 candles consecutivos pode interromper decisões quando o feed de mercado tem buracos; é deliberado para impedir resultados artificiais. Não preenche dados retrospectivamente, não impede o Render Free de dormir, não modifica regras de risco e não garante rentabilidade.
