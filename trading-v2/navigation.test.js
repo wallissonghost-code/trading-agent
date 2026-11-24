@@ -104,3 +104,15 @@ test('24 hour timeline is collapsed and updates only when Panel is shown',()=>{
  assert.match(code,/if\(activeWorkspace==='painel'&&\$\('monitorTimelinePanel'\)\.open\)/);
  assert.doesNotThrow(()=>new Function(code));
 });
+
+test('read-only rule and risk explanation is collapsed in Strategies and does not navigate to trading orders',()=>{
+ const strategies=html.slice(html.indexOf('id="view-estrategias"'),html.indexOf('id="view-noticias"'));
+ assert.match(strategies,/id="researchRiskPanel"/);
+ assert.match(strategies,/id="researchRiskResults"/);
+ assert.match(strategies,/id="refreshResearchRisk"/);
+ assert.match(strategies,/sem alterar as regras congeladas nem enviar ordens/);
+ const script=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+ assert.match(script,/fetch\('\/api\/research-risk'/);
+ assert.match(script,/\$\('researchRiskPanel'\)\.addEventListener\('toggle'/);
+ assert.doesNotThrow(()=>new Function(script));
+});
