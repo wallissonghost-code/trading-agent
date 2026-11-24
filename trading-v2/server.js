@@ -15,6 +15,7 @@ import { buildForwardObservation, summarizeForwardStudy, verifyFrozenForwardConf
 import { summarizeMonitoring } from './monitor-health.js';
 import { reviewShadowStops } from './stop-review.js';
 import { comparePreSignalHypotheses } from './hypothesis-screen.js';
+import { buildScreenObservation, verifyScreenStudy, summarizeScreenStudy } from './prospective-screens.js';
 import { explainResearchRisk } from './research-risk.js';
 import { summarizeObservedCoverage, buildObservedTimeline } from './monitor-coverage.js';
 import { auditWalkForwardReports } from './research-audit.js';
@@ -221,7 +222,7 @@ function getNewsImpactStatus(){
 // Frozen prospective research: one latest closed candle per market, collected ONLY after
 // the freeze timestamp. DB scores a signal only from its first full future candle.
 // Never call the paper execution engine or Binance order endpoints from this worker.
-let forwardConfig=null,shadowConfig=null,forwardCollectionPromise=null,forwardLastRun=0;
+let forwardConfig=null,shadowConfig=null,screenConfig=null,forwardCollectionPromise=null,forwardLastRun=0;
 let forwardCaptureState={lastCheckedAt:null,newObservations:0,sources:[],error:null};
 async function runForwardCapture(){
  if(!paperStore?.getFrozenForwardStudy||!paperStore?.insertForwardObservation)
@@ -240,6 +241,11 @@ async function runForwardCapture(){
    verifyShadowStudy(frozen);
    shadowConfig=frozen;
   }
+  if(!screenConfig&&paperStore?.getFrozenScreenStudy){
+   const frozen=await paperStore.getFrozenScreenStudy();
+   verifyScreenStudy(frozen);
+   screenConfig=frozen;
+  }
   const captured=await Promise.all(SYMBOLS.map(async symbol=>{
    try{
     const market=await getKlines(symbol,{limit:100});
@@ -254,7 +260,23 @@ async function runForwardCapture(){
        shadowStatus=stored?'recorded':'already_recorded';
      }else shadowStatus=parallel.status;
     }
-    return {symbol,status:inserted?'recorded':'already_recorded',shadowStatus};
+    let screenStatus='not_configured';
+    if(screenConfig&&paperStore?.insertScreenObservation){
+     // New experiment is independent: failure never rewrites the existing studies.
+     try{
+      const candidate=buildScreenObservation(market.candles,{symbol,
+       studyStartedAt:screenConfig.started_at});
+      if(candidate.status==='ready'){
+       const added=await paperStore.insertScreenObservation(candidate);
+       screenStatus=added?'recorded':'already_recorded';
+      }else screenStatus=candidate.status;
+     }catch(error){
+      screenStatus='error';
+      console.error('Prospective screen collection:',symbol,
+       String(error.message||error).slice(0,140));
+     }
+    }
+    return {symbol,status:inserted?'recorded':'already_recorded',shadowStatus,screenStatus};
    }catch(err){
     console.error('Prospective study:',symbol,String(err.message||err).slice(0,150));
     return {symbol,status:'error'};
@@ -404,6 +426,26 @@ async function getMonitoringHealth(){
    error:'Falha ao consultar última coleta',orderExecutionEnabled:false};
  }
 }
+async function getProspectiveScreenReport(){
+ if(!paperStore?.getFrozenScreenStudy||!paperStore?.listScreenObservations||!paperStore?.listScreenOutcomes)
+  return {ok:false,mode:'FROZEN_PROSPECTIVE_NEXT_BAR',error:'Estudo prospectivo não configurado'};
+ void runForwardCapture();
+ try{
+  if(!screenConfig){
+   const frozen=await paperStore.getFrozenScreenStudy();verifyScreenStudy(frozen);screenConfig=frozen;
+  }
+  const [observations,outcomes]=await Promise.all([
+   paperStore.listScreenObservations({limit:600}),paperStore.listScreenOutcomes({limit:900})
+  ]);
+  return {...summarizeScreenStudy({study:screenConfig,observations,outcomes}),
+   partialObservations:observations.length>=600,partialOutcomes:outcomes.length>=900};
+ }catch(error){
+  console.error('Screen prospective report unavailable:',String(error.message||error).slice(0,130));
+  return {ok:false,mode:'FROZEN_PROSPECTIVE_NEXT_BAR',
+   error:'Validação prospectiva temporariamente indisponível',
+   realOrdersEnabled:false,autoPromotionEnabled:false};
+ }
+}
 async function getHypothesisReport(){
  if(!paperStore?.listShadowTrades||!paperStore?.listStopReviewObservations)
   return {ok:false,mode:'EXPLORATORY_PRE_SIGNAL_SCREENS',error:'Pesquisa privada indisponível'};
@@ -495,6 +537,7 @@ else if(path==='/api/monitor-timeline')data=await getMonitoringTimeline();
 else if(path==='/api/monitor-coverage')data=await getMonitoringCoverage();
 else if(path==='/api/monitor-alerts')data=await getMonitoringAlerts();
 else if(path==='/api/monitor-health')data=await getMonitoringHealth();
+else if(path==='/api/prospective-screens')data=await getProspectiveScreenReport();
 else if(path==='/api/hypothesis-screen')data=await getHypothesisReport();
 else if(path==='/api/stop-review')data=await getStopReviewReport();
 else if(path==='/api/shadow-trades')data=await getShadowTradeReport();
