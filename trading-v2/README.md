@@ -58,6 +58,15 @@ Os possíveis resultados incluem `MANUAL_REVIEW_REQUIRED` (OHLC contínuo dispon
 
 Essa API não tem métodos de alteração da carteira, não liquida operações, não modifica histórico, não desbloqueia `gapLocks` e não atribui resultado financeiro a eventos não observados. O painel mostra apenas o parecer; a posição permanece bloqueada até que exista um processo de reconciliação administrativa separado, autorizado e auditado. Essa funcionalidade não soluciona a hibernação do serviço gratuito.
 
+
+## Processo administrativo para posições paper em quarentena
+
+A auditoria `GET /api/gap-reconciliation` inclui `administrativeReview` com um dossiê por robô. Cada dossiê contém uma identificação `caseId`, impressão digital SHA-256 das evidências `evidenceSha256`, snapshot da posição, lacuna, última decisão e resultado do exame OHLC. O hash serve para reconhecer quando o pacote de evidências muda; **não é assinatura digital, nem comprovação de autoria, nem autorização**.
+
+O estado administrativo pode ser `NO_ACTIVE_CASE`, `EVIDENCE_INCOMPLETE`, `AMBIGUOUS_MANUAL_REVIEW` ou `MANUAL_REVIEW_READY`. O último indica apenas que há evidências para análise humana, **nunca autorização para desbloquear**. O painel mostra o número do dossiê quando houver quarentena.
+
+O processo para uma futura resolução operacional exige, em etapa separada, autenticação com privilégio administrativo, confirmação explícita da decisão por caso, comparação com o hash atual do estado persistido, registro append-only da identidade/motivo/data/ações e mecanismo transacional de atualização do ledger e da posição. Essa etapa de mutação **não foi implementada nem habilitada**. Até lá, a posição continua preservada e o motor continua bloqueado quando `gapLocks` estiver ativo. Não executar SQL direto para apagar bloqueios e não inventar preenchimentos retroativos.
+
 ## Testes
 
 `npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-agent-v2.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
