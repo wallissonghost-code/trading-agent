@@ -406,6 +406,7 @@ function renderAgentPaperDecisions(p){
  const root=$('paperAgentDecisions'),names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
  const reason={EMA_TREND_NOT_BULLISH:'EMA9 não está acima da EMA21',RSI_OUTSIDE_BUY_RANGE:'RSI fora da faixa de compra (50–70)',
   MAX_OPEN_POSITIONS:'Limite de 2 posições virtuais abertas',CAPITAL_OR_RISK_LIMIT:'Capital ou orçamento de risco insuficiente',
+  PORTFOLIO_EXPOSURE_LIMIT:'Limite de 50% do patrimônio virtual em posições atingido',
   PORTFOLIO_DRAWDOWN_LOCK:'Carteira atingiu bloqueio por queda de 5%',POSITION_OPEN:'Posição virtual já aberta',
   EMA_RSI_WATCH_LONG:'Entrada virtual efetuada',STOP_LOSS:'Saída simulada por stop',TAKE_PROFIT:'Saída simulada no alvo',NO_NEW_ENTRY:'Nenhuma nova entrada'};
  const decisions=p?.lastDecisions||{};
@@ -420,7 +421,8 @@ function renderAgentPaperDecisions(p){
    '<p style="font-size:12px;margin:8px 0">'+esc(reason[d.reason]||d.reason||'Sem explicação')+'</p>'+
    '<div class="paper-agent-gates"><span>Tendência EMA: '+(gates.emaBullish===true?'Alta confirmada':gates.emaBullish===false?'Alta não confirmada':'—')+'</span>'+
    '<span>RSI de compra: '+(gates.rsiInBuyRange===true?'Dentro da faixa':gates.rsiInBuyRange===false?'Fora da faixa':'—')+'</span>'+
-   '<span>Limite de posições: '+(gates.positionSlotsAvailable===true?'Disponível':gates.positionSlotsAvailable===false?'Atingido':'—')+'</span></div>'+
+   '<span>Limite de posições: '+(gates.positionSlotsAvailable===true?'Disponível':gates.positionSlotsAvailable===false?'Atingido':'—')+'</span>'+ 
+   '<span>Exposição da carteira (50% máx.): '+(gates.portfolioExposureAvailable===true?'Disponível':gates.portfolioExposureAvailable===false?'Limite atingido':'Não avaliada')+'</span></div>'+
    '<small class="muted">RSI: '+(Number.isFinite(d.rsi14)?Number(d.rsi14).toLocaleString('pt-BR',{maximumFractionDigits:2}):'—')+
    ' • Candle: '+time+' • Registro simulado</small>'+
    (err?'<p class="health-error">Falha de coleta: '+esc(err)+'</p>':'')+'</div>';
