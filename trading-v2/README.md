@@ -85,6 +85,14 @@ Em 24/11/2026, o primeiro plano pago de Web Service do Render é o **Starter** (
 
 O serviço `trading-agent` **permaneceu em `free`**: nenhum upgrade ou autorização de cobrança foi aplicado. A memória observada em amostras recentes do Render ficou abaixo de 170 MB, portanto 512 MB parece um ponto inicial razoável, sujeito à validação de carga contínua. Fontes: https://render.com/pricing e https://render.com/docs/free e https://render.com/docs/compute-plans.
 
+## Integridade dos candles de 5 minutos e valorização paper
+
+Antes de processar uma nova decisão da carteira virtual, `processCandle` valida os **35 candles mais recentes** que alimentam os indicadores: timestamps válidos, intervalo consecutivo de cinco minutos, fechamento `openTime + 299999 ms` e coerência de OHLC. Se faltam velas dentro da janela (mesmo quando a última vela está recente), o processamento falha sem mudar saldo, posições, trades, cursor da última vela ou decisão. A coleta marca erro até receber dados válidos; uma lacuna entre o último candle já salvo e uma futura retomada válida permanece sujeita à quarentena `DATA_GAP_POSITION_LOCK` para posições abertas.
+
+O `paper runner` atualiza o preço visível de cada ativo somente **depois** de validar a sequência e concluir a gravação obrigatória no armazenamento. Falhas remotas deixam o último preço confirmado e interrompem novas operações, evitando apresentar patrimônio atualizado com preços de um processamento não confirmado.
+
+Essas proteções não reconstituem candles perdidos, não garantem monitoramento 24/7 no Render free, não alteram os critérios de entrada/saída e não habilitam ordens reais.
+
 ## Testes
 
 `npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-agent-v2.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
