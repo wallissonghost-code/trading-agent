@@ -39,3 +39,12 @@ test('mobile displays full robot portraits above the live trade details',()=>{
  assert.match(html,/\.agent-art img\{display:block!important/);
  assert.match(html,/object-fit:contain!important/);
 });
+
+
+test('robot room warns of stale collector and avoids claiming uninterrupted uptime',()=>{
+ assert.match(html,/id="collectorWarning"/);
+ assert.match(html,/role="status" aria-live="polite"/);
+ assert.match(html,/Coleta atrasada:/);
+ assert.match(html,/não há garantia de execução 24h/);
+ assert.match(html,/collectionHealth==='CURRENT'/);
+});
