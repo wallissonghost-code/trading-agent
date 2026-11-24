@@ -671,7 +671,12 @@ async function refreshProspectiveScreens(){
   root.innerHTML=Object.entries(report.bySymbol||{}).map(([symbol,market])=>
    '<div class="hypothesis-screen-card"><div class="between" style="gap:6px;flex-wrap:wrap"><strong>'+esc(names[symbol]||symbol)+'</strong>'+
    '<span class="history-pill">'+Number(market.observedCandles)+' candles</span></div>'+
-   '<p class="muted" style="font-size:11px">Lacunas entre candles observados: '+Number(market.gapIntervals||0)+'</p>'+
+   '<p class="muted" style="font-size:11px">Lacunas detectadas: '+Number(market.gapIntervals||0)+
+   ' • Candles faltantes: '+Number(market.missingCandleSlots||0)+
+   ' • Cobertura no intervalo registrado: '+(market.coveragePct===null?'—':Number(market.coveragePct).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%')+'</p>'+
+   '<p class="muted" style="font-size:11px">Última coleta: '+(market.latestCandleCloseTime?new Date(Number(market.latestCandleCloseTime)).toLocaleString('pt-BR'):'nenhuma')+
+   ' • '+(market.freshness==='RECENT'?'Atualizada':market.freshness==='DELAYED'?'Atrasada; servidor pode estar suspenso':'Sem observações')+
+   (market.ageMinutes===null?'':' ('+Number(market.ageMinutes)+' min)')+'</p>'+
    Object.entries(market.scenarios||{}).map(([key,r])=>
     '<div class="hypothesis-screen-row"><strong>'+esc(labels[key]||key)+'</strong>'+
     '<div class="hypothesis-screen-metrics"><span>Sinais <b>'+Number(r.signals)+'</b></span>'+
