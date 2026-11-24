@@ -65,8 +65,8 @@ function runSegment(candles,from,to,cfg,signals,{feeRate=FEE_RATE,slippageRate=S
     }
   } else {
     const signal=signals[i];
-    if(signal){
-      if(i-lastExitIndex<=cooldownBars){cooldownSkippedSignals++;continue;}
+    if(signal && i-lastExitIndex<=cooldownBars){cooldownSkippedSignals++;}
+    else if(signal){
       const entry=bar.open*(1+slippageRate);
       const stop=signal.last-signal.stopDistance;
       const stopDistance=entry-stop;
