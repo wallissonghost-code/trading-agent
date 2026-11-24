@@ -65,7 +65,8 @@ test('shadow study fails if any execution risk or filter parameters drift',()=>{
    {symbol:'BTCUSDT',scenario:'reference',status:'OPEN',entry_fill:100,stop_price:98,
      target_price:104,exit_fill:null,realized_pnl_usd:null,net_return_pct:null},
    {symbol:'BTCUSDT',scenario:'reference',status:'CLOSED',entry_fill:100,stop_price:98,
-     target_price:104,exit_fill:104,realized_pnl_usd:12,net_return_pct:3.9,exit_reason:'TARGET'},
+     target_price:104,exit_fill:104,realized_pnl_usd:12,net_return_pct:3.9,
+     entry_candle_open_time:1790000000000,exit_candle_close_time:1790000300000,exit_reason:'TARGET'},
    {symbol:'BTCUSDT',scenario:'reference',status:'INVALIDATED',entry_fill:100,stop_price:98,
      target_price:104,exit_fill:null,realized_pnl_usd:null,net_return_pct:null,exit_reason:'DATA_GAP'}
  ]});
