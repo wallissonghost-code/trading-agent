@@ -300,6 +300,16 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
  <div id="researchRiskResults"></div>
  <p class="performance-note">O preço de entrada é apenas uma aproximação pelo fechamento; stops e alvos futuros não são garantidos. Gaps podem causar perdas maiores do que o risco calculado.</p>
 </details>
+<details class="panel future-study-panel" id="prospectiveScreenPanel" style="margin-bottom:15px" aria-label="Validação prospectiva congelada de hipóteses">
+ <summary style="cursor:pointer;font-weight:800;font-size:16px">Validação futura de hipóteses <small class="muted" style="font-weight:400">• experimento novo e separado</small></summary>
+ <div class="between" style="flex-wrap:wrap;gap:8px;margin:12px 0">
+  <p class="muted" style="font-size:12px;margin:0;max-width:660px">Três filtros congelados antes da coleta, mais uma referência. Somente candles realmente observados após o início do estudo. O resultado usa apenas o próximo candle de 5 minutos, com custos estimados.</p>
+  <button id="refreshProspectiveScreens" type="button">Consultar estudo futuro</button>
+ </div>
+ <p id="prospectiveScreenStatus" class="muted" style="font-size:12px" aria-live="polite">Abra para consultar os dados coletados após a ativação.</p>
+ <div id="prospectiveScreenResults" class="hypothesis-screen-grid"></div>
+ <p class="performance-note">Uma avaliação de um candle não representa uma operação com stop ou alvo. Cenários dependentes, amostra insuficiente; regras antigas e carteira virtual permanecem intocadas. Não há operações reais.</p>
+</details>
 <details class="panel future-study-panel" id="hypothesisScreenPanel" style="margin-bottom:15px" aria-label="Hipóteses de entrada em estudo exploratório">
  <summary style="cursor:pointer;font-weight:800;font-size:16px">Laboratório de hipóteses <small class="muted" style="font-weight:400">• comparação retrospectiva, sem execução</small></summary>
  <div class="between" style="flex-wrap:wrap;gap:8px;margin:12px 0">
@@ -643,6 +653,33 @@ async function refreshResearchRisk(){
     ' • Perda no stop (com custos): '+(risk.estimatedStopPnLUsd===null?'—':money(risk.estimatedStopPnLUsd))+'</p></div>';
   }).join('');
  }catch(error){status.textContent='Análise indisponível: '+error.message;root.innerHTML='';}
+ finally{btn.disabled=false;}
+}
+async function refreshProspectiveScreens(){
+ const btn=$('refreshProspectiveScreens'),status=$('prospectiveScreenStatus'),root=$('prospectiveScreenResults');
+ btn.disabled=true;
+ try{
+  const res=await fetch('/api/prospective-screens',{cache:'no-store'});
+  if(!res.ok)throw Error('HTTP '+res.status);
+  const report=await res.json();if(!report.ok)throw Error(report.error||'Estudo indisponível');
+  const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const labels={reference:'Referência seletiva',atr_at_least_025:'Volatilidade ATR ≥ 0,25%',momentum_6_positive:'Seis candles em alta',atr_and_momentum:'Volatilidade + tendência'};
+  const pct=n=>n===null?'—':Number(n).toLocaleString('pt-BR',{maximumFractionDigits:4})+'%';
+  status.textContent='Estudo iniciado em '+new Date(report.startedAt).toLocaleString('pt-BR')+
+   ' • '+Number(report.observations)+' candles novos • '+Number(report.outcomes)+' avaliações de cenário'+
+   (report.partialObservations||report.partialOutcomes?' • histórico parcial':'');
+  root.innerHTML=Object.entries(report.bySymbol||{}).map(([symbol,market])=>
+   '<div class="hypothesis-screen-card"><div class="between" style="gap:6px;flex-wrap:wrap"><strong>'+esc(names[symbol]||symbol)+'</strong>'+
+   '<span class="history-pill">'+Number(market.observedCandles)+' candles</span></div>'+
+   Object.entries(market.scenarios||{}).map(([key,r])=>
+    '<div class="hypothesis-screen-row"><strong>'+esc(labels[key]||key)+'</strong>'+
+    '<div class="hypothesis-screen-metrics"><span>Sinais <b>'+Number(r.signals)+'</b></span>'+
+    '<span>Avaliados <b>'+Number(r.scored)+'</b></span>'+
+    '<span>Positivos <b>'+Number(r.positiveOutcomes)+'</b></span></div>'+
+    '<small>Retorno médio hipotético de 5 minutos após custos: '+pct(r.averageModeledNetReturnPct)+'</small></div>'
+   ).join('')+'</div>'
+  ).join('');
+ }catch(error){status.textContent='Não foi possível consultar o estudo futuro: '+error.message;root.innerHTML='';}
  finally{btn.disabled=false;}
 }
 async function refreshHypothesisScreen(){
@@ -1087,6 +1124,8 @@ $('refreshForwardStudy').addEventListener('click',refreshForwardStudy);
 $('refreshShadowTrades').addEventListener('click',refreshShadowTrades);
 $('refreshStopReview').addEventListener('click',refreshStopReview);
 $('refreshHypothesisScreen').addEventListener('click',refreshHypothesisScreen);
+$('refreshProspectiveScreens').addEventListener('click',refreshProspectiveScreens);
+$('prospectiveScreenPanel').addEventListener('toggle',()=>{if($('prospectiveScreenPanel').open)void refreshProspectiveScreens();});
 $('hypothesisScreenPanel').addEventListener('toggle',()=>{if($('hypothesisScreenPanel').open)void refreshHypothesisScreen();});
 $('stopReviewPanel').addEventListener('toggle',()=>{if($('stopReviewPanel').open)void refreshStopReview();});
 $('refreshResearchRisk').addEventListener('click',refreshResearchRisk);
