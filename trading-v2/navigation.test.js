@@ -152,3 +152,15 @@ test('hypothesis research stays collapsed and never offers live strategy activat
  assert.match(script,/\$\('hypothesisScreenPanel'\)\.addEventListener\('toggle'/);
  assert.doesNotThrow(()=>new Function(script));
 });
+
+test('new frozen prospective study is read-only, collapsed and distinct from historical screens',()=>{
+ const view=html.slice(html.indexOf('id="view-estrategias"'),html.indexOf('id="view-noticias"'));
+ assert.match(view,/id="prospectiveScreenPanel"/);
+ assert.match(view,/id="prospectiveScreenResults"/);
+ assert.match(view,/id="refreshProspectiveScreens"/);
+ assert.match(view,/após o início do estudo/);
+ const js=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+ assert.match(js,/fetch\('\/api\/prospective-screens'/);
+ assert.match(js,/\$\('prospectiveScreenPanel'\)\.addEventListener\('toggle'/);
+ assert.doesNotThrow(()=>new Function(js));
+});
