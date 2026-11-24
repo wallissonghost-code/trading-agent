@@ -671,11 +671,14 @@ async function refreshProspectiveScreens(){
   root.innerHTML=Object.entries(report.bySymbol||{}).map(([symbol,market])=>
    '<div class="hypothesis-screen-card"><div class="between" style="gap:6px;flex-wrap:wrap"><strong>'+esc(names[symbol]||symbol)+'</strong>'+
    '<span class="history-pill">'+Number(market.observedCandles)+' candles</span></div>'+
+   '<p class="muted" style="font-size:11px">Lacunas entre candles observados: '+Number(market.gapIntervals||0)+'</p>'+
    Object.entries(market.scenarios||{}).map(([key,r])=>
     '<div class="hypothesis-screen-row"><strong>'+esc(labels[key]||key)+'</strong>'+
     '<div class="hypothesis-screen-metrics"><span>Sinais <b>'+Number(r.signals)+'</b></span>'+
     '<span>Avaliados <b>'+Number(r.scored)+'</b></span>'+
-    '<span>Positivos <b>'+Number(r.positiveOutcomes)+'</b></span></div>'+
+    '<span>Positivos <b>'+Number(r.positiveOutcomes)+'</b></span>'+
+    '<span>Aguardando próximo candle <b>'+Number(r.awaitingNextCandle||0)+'</b></span>'+
+    '<span>Sem avaliação apesar de candle seguinte <b>'+Number(r.unscoredWithNextCandle||0)+'</b></span></div>'+
     '<small>Retorno médio hipotético de 5 minutos após custos: '+pct(r.averageModeledNetReturnPct)+'</small></div>'
    ).join('')+'</div>'
   ).join('');
