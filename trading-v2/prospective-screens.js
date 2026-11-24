@@ -54,7 +54,7 @@ export function summarizeScreenStudy({study,observations=[],outcomes=[],now=Date
   // A trailing period without candles is missing coverage, even when the stored
   // first-to-last series looked complete (e.g., a sleeping free-tier server).
   const trailingMissingSlots=latest&&Number.isSafeInteger(latestClose)&&Number.isFinite(now)?
-   Math.max(0,Math.floor((now-(latestClose+1))/300000)):0;
+   Math.max(0,Math.floor((now-latestClose)/300000)):0;
   const expectedSlotsSinceFirst=items.length+missingCandleSlots+trailingMissingSlots;
   return [symbol,{observedCandles:items.length,gapIntervals,missingCandleSlots,
    trailingMissingSlots,expectedSlotsSinceFirst,
