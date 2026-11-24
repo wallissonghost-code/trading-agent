@@ -56,7 +56,23 @@ export function summarizeScreenStudy({study,observations=[],outcomes=[],now=Date
   const trailingMissingSlots=latest&&Number.isSafeInteger(latestClose)&&Number.isFinite(now)?
    Math.max(0,Math.floor((now-latestClose)/300000)):0;
   const expectedSlotsSinceFirst=items.length+missingCandleSlots+trailingMissingSlots;
-  return [symbol,{observedCandles:items.length,gapIntervals,missingCandleSlots,
+  // The diagnostic prioritizes data integrity over absence of qualifying signals.
+  // Never confuse no opportunities with a broken bot, or vice versa.
+  const referenceSignals=items.filter(x=>x.signals?.reference===true).length;
+  const refScored=new Set(scored.filter(x=>x.scenario==='reference').map(x=>Number(x.signal_candle_close_time)));
+  const refPending=items.filter(x=>x.signals?.reference===true&&!refScored.has(Number(x.candle_close_time)));
+  const hasMissingEvaluations=refPending.some(x=>candleTimes.has(Number(x.candle_close_time)+300000));
+  const hasExpiredResult=refPending.some(x=>!candleTimes.has(Number(x.candle_close_time)+300000)&&
+    Number.isFinite(now)&&now>Number(x.candle_close_time)+300000+660000);
+  const hasFutureToObserve=refPending.some(x=>!candleTimes.has(Number(x.candle_close_time)+300000)&&
+    Number.isFinite(now)&&now<=Number(x.candle_close_time)+300000+660000);
+  const diagnostic=items.length===0?'NO_OBSERVATIONS':
+   freshness==='DELAYED'?'COLLECTION_DELAYED':
+   hasMissingEvaluations?'EVALUATION_MISSING':
+   hasExpiredResult?'RESULT_EXPIRED':
+   hasFutureToObserve?'WAITING_NEXT_CANDLE':
+   referenceSignals===0?'NO_ELIGIBLE_SIGNALS':'OBSERVING_RESULTS';
+  return [symbol,{observedCandles:items.length,gapIntervals,missingCandleSlots,diagnostic,
    trailingMissingSlots,expectedSlotsSinceFirst,
    coverageSinceFirstPct:expectedSlotsSinceFirst?
     round(100*items.length/expectedSlotsSinceFirst):null,
