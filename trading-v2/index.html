@@ -223,6 +223,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 .risk-explain-market{margin:10px 0;padding:12px;border:1px solid #34516a;border-radius:12px;background:#091b30;min-width:0}.risk-explain-metrics{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.risk-explain-metrics span{font-size:11px;border:1px solid #324a65;padding:7px;border-radius:9px;color:#a9bfcb}.risk-explain-metrics b{color:#f0f8ff}.risk-explain-line{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;padding:8px 0;border-top:1px solid #273e55;font-size:12px;overflow-wrap:anywhere}.risk-explain-line strong{font-size:12px}@media(max-width:460px){.risk-explain-line{grid-template-columns:minmax(0,1fr)}}
 .paper-agent-decisions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.paper-agent-decision{padding:12px;border:1px solid #35536a;border-radius:12px;background:#081b30;min-width:0}.paper-agent-decision small{display:block;font-size:11px;line-height:1.5;margin-top:10px}.paper-agent-gates{display:grid;gap:5px}.paper-agent-gates>span{font-size:11px;color:#a9c2d4;overflow-wrap:anywhere}@media(max-width:790px){.paper-agent-decisions{grid-template-columns:minmax(0,1fr)}}
 .stop-review-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.stop-review-card{padding:12px;min-width:0;border:1px solid #355169;border-radius:12px;background:#091c30}.stop-review-kpis{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0}.stop-review-kpis span{font-size:11px;color:#a7c0d3}.stop-review-kpis strong{display:block;color:#ecf5ff;font-size:14px;margin-top:4px}.stop-review-line{border-top:1px solid #314960;padding:10px 0;overflow-wrap:anywhere}.stop-review-line strong{font-size:12px}.stop-review-line small{display:block;font-size:11px;line-height:1.5;color:#aac0d1}@media(max-width:850px){.stop-review-grid{grid-template-columns:minmax(0,1fr)}}
+.hypothesis-screen-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.hypothesis-screen-card{padding:12px;border:1px solid #355169;border-radius:12px;background:#091c30;min-width:0}.hypothesis-screen-row{padding:11px 0;border-top:1px solid #304b64;margin-top:9px;overflow-wrap:anywhere}.hypothesis-screen-row>strong{font-size:12px}.hypothesis-screen-row small{display:block;font-size:11px;color:#a9c1d3;line-height:1.5;margin-top:5px}.hypothesis-screen-metrics{display:flex;flex-wrap:wrap;gap:8px;margin-top:7px}.hypothesis-screen-metrics span{font-size:11px;color:#9ebbd0}.hypothesis-screen-metrics b{color:#edf7ff}@media(max-width:850px){.hypothesis-screen-grid{grid-template-columns:minmax(0,1fr)}}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Trading Agent V2">
@@ -298,6 +299,16 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
  <p id="researchRiskStatus" class="muted" style="font-size:12px" aria-live="polite">Abrir para consultar os indicadores.</p>
  <div id="researchRiskResults"></div>
  <p class="performance-note">O preço de entrada é apenas uma aproximação pelo fechamento; stops e alvos futuros não são garantidos. Gaps podem causar perdas maiores do que o risco calculado.</p>
+</details>
+<details class="panel future-study-panel" id="hypothesisScreenPanel" style="margin-bottom:15px" aria-label="Hipóteses de entrada em estudo exploratório">
+ <summary style="cursor:pointer;font-weight:800;font-size:16px">Laboratório de hipóteses <small class="muted" style="font-weight:400">• comparação retrospectiva, sem execução</small></summary>
+ <div class="between" style="flex-wrap:wrap;gap:8px;margin:12px 0">
+  <p class="muted" style="font-size:12px;margin:0;max-width:650px">Compare o que três filtros hipotéticos manteriam ou excluiriam nas operações prospectivas já encerradas da estratégia de referência. Sem alterar o motor e sem inventar novas operações.</p>
+  <button id="refreshHypothesisScreen" type="button">Comparar hipóteses</button>
+ </div>
+ <p id="hypothesisScreenStatus" class="muted" style="font-size:12px">Abra a seção para consultar os registros.</p>
+ <div id="hypothesisScreenResults" class="hypothesis-screen-grid"></div>
+ <p class="performance-note">O resultado das operações excluídas é histórico, não dinheiro que teria sido economizado. Não é um backtest independente. Cenários com contexto desconhecido são separados e a amostra atual é insuficiente para aprovar filtros.</p>
 </details>
 <details class="panel future-study-panel" id="stopReviewPanel" style="margin-bottom:15px" aria-label="Auditoria de stops e contexto de mercado">
  <summary style="cursor:pointer;font-weight:800;font-size:16px">Auditoria de perdas e stops <small class="muted" style="font-weight:400">• estudo prospectivo</small></summary>
@@ -632,6 +643,32 @@ async function refreshResearchRisk(){
     ' • Perda no stop (com custos): '+(risk.estimatedStopPnLUsd===null?'—':money(risk.estimatedStopPnLUsd))+'</p></div>';
   }).join('');
  }catch(error){status.textContent='Análise indisponível: '+error.message;root.innerHTML='';}
+ finally{btn.disabled=false;}
+}
+async function refreshHypothesisScreen(){
+ const btn=$('refreshHypothesisScreen'),status=$('hypothesisScreenStatus'),root=$('hypothesisScreenResults');
+ btn.disabled=true;
+ try{
+  const res=await fetch('/api/hypothesis-screen',{cache:'no-store'});
+  if(!res.ok)throw Error('HTTP '+res.status);
+  const report=await res.json();
+  if(!report.ok)throw Error(report.error||'Comparação indisponível');
+  const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const money=x=>Number(x).toLocaleString('pt-BR',{style:'currency',currency:'USD'});
+  status.textContent=Number(report.closedReferenceTrades||0)+' operações de referência encerradas e únicas • regras originais preservadas'+
+   (report.partialTrades||report.partialObservations?' • histórico parcial':'');
+  root.innerHTML=Object.entries(report.bySymbol||{}).map(([symbol,item])=>
+   '<div class="hypothesis-screen-card"><div class="between" style="gap:6px;flex-wrap:wrap"><strong>'+esc(names[symbol]||symbol)+'</strong><span class="history-pill">'+Number(item.closedReferenceTrades)+' operações</span></div>'+
+   (Number(item.ambiguousDuplicateSignals)>0?'<p class="muted" style="font-size:11px">'+Number(item.ambiguousDuplicateSignals)+' sinal(is) duplicado(s) excluído(s) da análise.</p>':'')+
+   (item.scenarios||[]).map(h=>
+    '<div class="hypothesis-screen-row"><strong>'+esc(h.label)+'</strong>'+
+    '<div class="hypothesis-screen-metrics"><span>Mantidas <b>'+Number(h.kept.count)+'</b></span><span>Excluídas <b>'+Number(h.excluded.count)+'</b></span>'+
+    '<span>Sem contexto <b>'+Number(h.unknownContext)+'</b></span></div>'+
+    '<small>Resultado observado das mantidas: '+money(h.kept.observedNetPnlUsd)+
+    ' • das excluídas: '+money(h.excluded.observedNetPnlUsd)+'</small></div>'
+   ).join('')+'</div>'
+  ).join('');
+ }catch(error){status.textContent='Não foi possível comparar hipóteses: '+error.message;root.innerHTML='';}
  finally{btn.disabled=false;}
 }
 async function refreshStopReview(){
@@ -1049,6 +1086,8 @@ $('refreshEntryFilters').addEventListener('click',refreshEntryFilters);
 $('refreshForwardStudy').addEventListener('click',refreshForwardStudy);
 $('refreshShadowTrades').addEventListener('click',refreshShadowTrades);
 $('refreshStopReview').addEventListener('click',refreshStopReview);
+$('refreshHypothesisScreen').addEventListener('click',refreshHypothesisScreen);
+$('hypothesisScreenPanel').addEventListener('toggle',()=>{if($('hypothesisScreenPanel').open)void refreshHypothesisScreen();});
 $('stopReviewPanel').addEventListener('toggle',()=>{if($('stopReviewPanel').open)void refreshStopReview();});
 $('refreshResearchRisk').addEventListener('click',refreshResearchRisk);
 $('researchRiskPanel').addEventListener('toggle',()=>{if($('researchRiskPanel').open)void refreshResearchRisk();});
