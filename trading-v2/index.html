@@ -219,6 +219,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 .health-robots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.health-robot-card{padding:13px;border:1px solid #35536a;border-radius:12px;background:#0a1b2e;min-width:0}.health-state{font-size:11px;font-weight:700;border-radius:99px;padding:5px 8px;white-space:normal}.health-ok{background:#144537;color:#c3f6df}.health-warning{background:#4f3220;color:#ffdeb2}.health-robot-meta{display:grid;gap:6px;margin-top:10px;font-size:11px;color:#9cbbcf}.health-error{font-size:11px;color:#ffc09a;margin:5px 0 0}@media(max-width:800px){.health-robots{grid-template-columns:minmax(0,1fr)}}
 .monitor-alerts-details{margin:12px 0;padding:11px;border:1px solid #32506a;border-radius:12px;background:#07182b}.monitor-alerts-details>summary{cursor:pointer;line-height:1.5;font-size:13px}.monitor-alerts-rows{max-height:300px;overflow-y:auto}.monitor-alert-event{padding:10px 3px;border-top:1px solid #29435c;display:grid;gap:6px;font-size:12px}.monitor-alert-event>div{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.monitor-alert-event small{font-size:11px;color:#9bb4c6}.monitor-alert-type{padding:3px 7px;border-radius:9px;font-size:11px;font-weight:700}.alert-recovered{color:#b3edce;background:#154334}.alert-problem{color:#ffd4ad;background:#58331e}
 .monitor-coverage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.monitor-coverage-card{padding:12px;border-radius:12px;border:1px solid #34516a;background:#091b30;min-width:0}.monitor-coverage-card strong,.monitor-coverage-card small{display:block;overflow-wrap:anywhere}.monitor-coverage-card small{font-size:11px;color:#a3bcd1;margin-top:7px}.monitor-coverage-value{font-size:23px;font-weight:800;margin:8px 0 6px}.monitor-coverage-bar{height:8px;border-radius:30px;background:#334559;overflow:hidden}.monitor-coverage-bar>div{height:100%;background:#45baaa;border-radius:30px;max-width:100%}@media(max-width:780px){.monitor-coverage-grid{grid-template-columns:minmax(0,1fr)}}
+.monitor-timeline-robot{padding:12px 0;border-top:1px solid #29435c}.monitor-timeline-track{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;margin:12px 0 5px;width:100%;min-width:0}.monitor-timeline-cell{height:29px;border-radius:3px;position:relative;min-width:0}.timeline-full{background:#2cb596}.timeline-partial{background:#bf9561}.timeline-unknown{background:#405268}.monitor-timeline-cell.has-incident{outline:2px solid #fa8c63;outline-offset:0}.timeline-alert-dot{position:absolute;top:-5px;right:-4px;border-radius:50%;height:8px;width:8px;background:#ff916b}.monitor-timeline-axis small{font-size:10px;color:#91a5bb}.monitor-timeline-legend{display:flex;gap:10px;flex-wrap:wrap;padding:8px 0 10px}.monitor-timeline-legend span{display:flex;align-items:center;gap:5px;font-size:10px;color:#9eb8ca}.monitor-timeline-legend i{display:inline-block;width:10px;height:10px;border-radius:2px}.monitor-timeline-legend .timeline-incident{background:#ff916b}@media(max-width:480px){.monitor-timeline-track{gap:2px}.monitor-timeline-cell{height:25px}}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Trading Agent V2">
@@ -237,7 +238,18 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
  <p class="muted" style="font-size:12px">Confere a coleta prospectiva de candles de BTC, ETH e SOL. Não confunde ausência de sinal com falha na conexão. A saúde da carteira virtual é exibida separadamente.</p>
  <p id="monitorHealthStatus" class="history-totals" aria-live="polite">Consultando os três mercados...</p>
  <div class="health-robots" id="monitorHealthRobots"></div>
- <details class="monitor-alerts-details" id="monitorCoveragePanel">
+ <details class="monitor-alerts-details" id="monitorTimelinePanel">
+ <summary><strong>Linha do tempo • últimas 24 horas</strong><span class="muted" id="monitorTimelineSummary"> • 3 mercados</span></summary>
+ <div class="between" style="margin:12px 0 8px;gap:8px;flex-wrap:wrap">
+  <p class="muted" style="font-size:12px;margin:0">Uma coluna por hora: registro completo, parcial ou não observado. Alertas indicam o horário da detecção.</p>
+  <button id="refreshMonitorTimeline" type="button">Atualizar linha do tempo</button>
+ </div>
+ <p id="monitorTimelineStatus" class="muted" style="font-size:12px">Carregando histórico...</p>
+ <div id="monitorTimelineRows"></div>
+ <div class="monitor-timeline-legend"><span><i class="timeline-full"></i>12/12 candles</span><span><i class="timeline-partial"></i>1–11 candles</span><span><i class="timeline-unknown"></i>Sem registro</span><span><i class="timeline-incident"></i>Alerta detectado</span></div>
+ <p class="muted" style="font-size:11px">“Sem registro” não significa necessariamente servidor offline. Os horários de incidentes são horários de detecção, não o começo comprovado de uma falha.</p>
+</details>
+<details class="monitor-alerts-details" id="monitorCoveragePanel">
  <summary><strong>Disponibilidade observada • últimas 6 horas</strong><span class="muted" id="monitorCoverageSummary"> • Cobertura de candles, não uptime</span></summary>
  <div class="between" style="margin:12px 0 8px;gap:8px;flex-wrap:wrap">
   <p class="muted" style="font-size:12px;margin:0">Mostra quantos candles realmente foram gravados; não estima a disponibilidade real do servidor.</p>
@@ -422,6 +434,41 @@ async function refreshTradeHistory(){
 
 let forwardStudyTimer=null;
 let impactRefreshTimeout=null;
+async function refreshMonitorTimeline(){
+ const button=$('refreshMonitorTimeline'),status=$('monitorTimelineStatus'),
+  root=$('monitorTimelineRows'),summary=$('monitorTimelineSummary');
+ button.disabled=true;
+ try{
+  const response=await fetch('/api/monitor-timeline',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const report=await response.json();
+  if(!report.ok)throw Error(report.error||'Linha do tempo indisponível');
+  const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const start=new Date(report.windowStart),end=new Date(report.windowEnd);
+  status.textContent='Observações entre '+start.toLocaleString('pt-BR')+' e '+end.toLocaleString('pt-BR')+
+   ' • cada segmento representa 1 hora';
+  summary.textContent=' • 24 blocos por mercado';
+  root.innerHTML=Object.entries(report.bySymbol||{}).map(([symbol,market])=>{
+   const columns=(market.timeline||[]).map(b=>{
+    const count=Math.max(0,Math.min(12,Number(b.recorded)||0));
+    const alert=Array.isArray(b.events)&&b.events.length>0;
+    const date=new Date(b.start);
+    const info=date.toLocaleString('pt-BR')+' • '+count+'/12 candles registrados'+
+     (alert?' • '+b.events.length+' alerta(s) detectado(s)':'');
+    return '<div class="monitor-timeline-cell '+(count===12?'timeline-full':count===0?'timeline-unknown':'timeline-partial')+
+      (alert?' has-incident':'')+'" title="'+esc(info)+'" aria-label="'+esc(info)+'" role="img">'+
+      (alert?'<span class="timeline-alert-dot"></span>':'')+'</div>';
+   }).join('');
+   return '<div class="monitor-timeline-robot"><div class="between" style="flex-wrap:wrap;gap:6px"><strong>'+
+     esc(names[symbol]||symbol)+'</strong><span class="muted" style="font-size:11px">'+
+     Number(market.recorded||0)+'/288 registrados ('+
+     Number(market.coveragePct||0).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%)</span></div>'+
+     '<div class="monitor-timeline-track" aria-label="Linha do tempo de '+esc(names[symbol]||symbol)+'">'+columns+'</div>'+
+     '<div class="between monitor-timeline-axis"><small>24h atrás</small><small>12h atrás</small><small>Agora</small></div></div>';
+  }).join('');
+ }catch(error){status.textContent='Falha na linha do tempo: '+error.message;root.innerHTML='';}
+ finally{button.disabled=false;}
+}
 async function refreshMonitorCoverage(){
  const button=$('refreshMonitorCoverage'),status=$('monitorCoverageStatus'),root=$('monitorCoverageRows'),summary=$('monitorCoverageSummary');
  button.disabled=true;
@@ -888,6 +935,7 @@ $('refreshShadowTrades').addEventListener('click',refreshShadowTrades);
 $('refreshMonitorHealth').addEventListener('click',refreshMonitorHealth);
 $('refreshMonitorAlerts').addEventListener('click',refreshMonitorAlerts);
 $('refreshMonitorCoverage').addEventListener('click',refreshMonitorCoverage);
+$('refreshMonitorTimeline').addEventListener('click',refreshMonitorTimeline);
 // Hash-addressable tabs preserve mobile navigation and back/forward without extra page loads.
 const WORKSPACES=['painel','operacoes','estrategias','noticias','auditoria'];
 let activeWorkspace=null;
@@ -908,7 +956,7 @@ function openWorkspace(key,{scroll=true}={}){
  if(scroll)window.scrollTo({top:0,behavior:'auto'});
  if(!visitedWorkspaces.has(selected)){
   visitedWorkspaces.add(selected);
-  if(selected==='painel'){void sync();void refreshMonitorHealth();void refreshMonitorAlerts();void refreshMonitorCoverage();}
+  if(selected==='painel'){void sync();void refreshMonitorHealth();void refreshMonitorAlerts();void refreshMonitorCoverage();void refreshMonitorTimeline();}
   if(selected==='operacoes')void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
   if(selected==='estrategias'){
    void refreshShadowTrades();
@@ -924,6 +972,7 @@ function openWorkspace(key,{scroll=true}={}){
   void refreshMonitorHealth();
   void refreshMonitorAlerts();
   void refreshMonitorCoverage();
+  void refreshMonitorTimeline();
  }else if(selected==='operacoes'){
   void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
  }else if(selected==='estrategias'){
@@ -955,6 +1004,7 @@ setInterval(()=>{if(activeWorkspace==='estrategias'){void refreshForwardStudy();
 setInterval(()=>{if(activeWorkspace==='painel')void refreshMonitorHealth();},60000);
 setInterval(()=>{if(activeWorkspace==='painel'&&$('monitorAlertsPanel').open)void refreshMonitorAlerts();},90000);
 setInterval(()=>{if(activeWorkspace==='painel'&&$('monitorCoveragePanel').open)void refreshMonitorCoverage();},120000);
+setInterval(()=>{if(activeWorkspace==='painel'&&$('monitorTimelinePanel').open)void refreshMonitorTimeline();},120000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshPaper();},15000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshRealMarket();},60000);
 setInterval(()=>{if(activeWorkspace==='operacoes'){
