@@ -66,3 +66,31 @@ test('an outcome closes pending reference signal without inventing further order
  assert.equal(r.scored,1);assert.equal(r.awaitingNextCandle,0);
  assert.equal(r.unscoredWithNextCandle,0);assert.equal(x.realOrdersEnabled,false);
 });
+
+test('capture coverage counts missing five-minute slots rather than only gap incidents',()=>{
+ const t=1795517699999;
+ const rows=[t,t+300000,t+1200000].map(time=>({
+  symbol:'BTCUSDT',candle_close_time:time,observed_at:new Date(time).toISOString(),
+  signals:{reference:false}
+ }));
+ const x=summarizeScreenStudy({study,observations:rows,outcomes:[],now:t+1200000+60000});
+ const b=x.bySymbol.BTCUSDT;
+ assert.equal(b.observedCandles,3);
+ assert.equal(b.gapIntervals,1);
+ assert.equal(b.missingCandleSlots,2);
+ assert.equal(b.coveragePct,60);
+ assert.equal(b.freshness,'RECENT');
+ assert.equal(b.ageMinutes,1);
+});
+test('stale capture and absent data are distinct from a broken trading strategy',()=>{
+ const t=1795517699999;
+ const row={symbol:'SOLUSDT',candle_close_time:t,observed_at:new Date(t).toISOString(),
+  signals:{reference:false}};
+ const recent=summarizeScreenStudy({study,observations:[row],outcomes:[],now:t+60000});
+ const old=summarizeScreenStudy({study,observations:[row],outcomes:[],now:t+17*60000});
+ assert.equal(recent.bySymbol.SOLUSDT.freshness,'RECENT');
+ assert.equal(old.bySymbol.SOLUSDT.freshness,'DELAYED');
+ assert.equal(old.bySymbol.ETHUSDT.freshness,'NO_OBSERVATIONS');
+ assert.equal(old.bySymbol.ETHUSDT.coveragePct,null);
+ assert.equal(old.realOrdersEnabled,false);
+});
