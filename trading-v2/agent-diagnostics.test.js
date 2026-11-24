@@ -37,3 +37,24 @@ test('supports all symbols with stable identifiers and finite timestamps',()=>{
  assert.deepEqual(list.map(x=>x.name),['ALPHA','NOVA','ORION']);
  assert.ok(list.every(x=>AGENT_STATES.includes(x.state)&&x.lastCandleCloseAt?.endsWith('Z')));
 });
+
+
+test('aggregate health turns stale when any agent stops receiving candles',()=>{
+ const p=base();p.lastCandle.ETHUSDT=now-60*60000;
+ const report=summarizePaperAgents(p,{now});
+ assert.equal(report.collectionHealth,'STALE');
+ assert.equal(report.allCurrent,false);
+ assert.ok(report.lastCandleCloseAt?.endsWith('Z'));
+ assert.equal(report.realOrdersEnabled,false);
+});
+test('aggregate health is current only when all three agents are fresh',()=>{
+ const report=summarizePaperAgents(base(),{now});
+ assert.equal(report.collectionHealth,'CURRENT');
+ assert.equal(report.allCurrent,true);
+});
+test('aggregate health does not mistake missing observations for healthy trading',()=>{
+ const p=base();delete p.lastCandle.BTCUSDT;
+ assert.equal(summarizePaperAgents(p,{now}).collectionHealth,'INSUFFICIENT_DATA');
+ p.lastError.ETHUSDT='timeout';
+ assert.equal(summarizePaperAgents(p,{now}).collectionHealth,'ERROR');
+});
