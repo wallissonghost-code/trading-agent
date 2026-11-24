@@ -191,4 +191,20 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 - `164e2f0`: teste para evitar confundir bloqueio de exposição com orçamento geral e confirmar que o classificador não cria ordens.
 - A suíte de testes e o deploy mais recentes devem ser conferidos antes de declarar a atualização em produção.
 
-**Limitação operacional**: serviço web Render plano gratuito pode suspender, causando lacunas de candles. Não afirmar disponibilidade 24h; não habilitar trading real nem contratar serviços. 
+**Limitação operacional**: serviço web Render plano gratuito pode suspender, causando lacunas de candles. Não afirmar disponibilidade 24h; não habilitar trading real nem contratar serviços.
+
+
+## 14. Auditoria de estabilidade — 24/11/2026 (18:09 Brasília)
+
+**Estado da infraestrutura na consulta:** Render `trading-agent` mostrou deploy `755549151` como `live`, plano `free` mantido, autodeploy no branch `trading-agent-v2`. No Supabase às `2026-11-24T21:09:58Z`, o último snapshot persistido foi `2026-11-24T19:30:46Z`, com atraso de **99,2 minutos** e `lastError={}`. Isto mostra que o processo não está registrando candles a cada cinco minutos enquanto inativo. A hibernação do serviço free é uma explicação provável, mas a leitura do banco sozinha não demonstra a causa.
+
+**NOVA:** última decisão na mesma consulta foi `WAIT` / `EMA_TREND_NOT_BULLISH`, RSI `44.99`; o motivo da última decisão pode mudar a cada candle. A detecção de bloqueio por exposição implementada em commits anteriores permanece válida para o caso anterior; não apresentar como razão permanente do robô.
+
+**Correção desta etapa, sem alterar trading, taxas nem risco:**
+- Commit `f7c03ac`: `/api/agent-diagnostics` passa a expor `collectionHealth` com `CURRENT`, `STALE`, `ERROR`, `INSUFFICIENT_DATA` ou `PARTIAL`, `allCurrent` e `lastCandleCloseAt`.
+- Commit `0258ff7`: testes de regressão da classificação agregada.
+- Commit `cf040166`: sala dos robôs apresenta aviso `collectorWarning` de coleta atrasada, falta de dados, falhas e ausência de garantia de execução 24h no plano gratuito.
+- Commit `754be50`: teste automatizado do aviso visual e semântica acessível.
+- **Publicação/testes**: verificar o último workflow GitHub e o último deploy Render; estavam em andamento na consulta inicial. Não registrar sucesso até confirmar.
+
+**Pendência estrutural:** a coleta paper baseada no timer do processo web Render free não é 24/7. Não usar pings artificiais para simular produção contínua. Alternativas futuras dependem de uma mudança explícita de infraestrutura/custos ou arquitetura de coleta dirigida por eventos, sem retrocriar candles perdidos.
