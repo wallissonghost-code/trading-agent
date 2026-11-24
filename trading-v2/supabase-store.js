@@ -97,11 +97,22 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
    if(!Array.isArray(rows))throw Error('Invalid timeline observations');
    return rows;
   },
+  async listStopReviewObservations({limit=600}={}){
+   const path=new URL('/rest/v1/trading_shadow_candles',origin);
+   path.searchParams.set('portfolio_id','eq.'+id);
+   path.searchParams.set('version','eq.shadow-v1-20261124');
+   path.searchParams.set('select','symbol,candle_close_time,candle_close,atr14');
+   path.searchParams.set('order','candle_close_time.desc');
+   path.searchParams.set('limit',String(Math.max(1,Math.min(1000,Number(limit)||600))));
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows))throw Error('Invalid pre-signal observations');
+   return rows;
+  },
   async listShadowTrades({limit=500}={}){
    const path=new URL('/rest/v1/trading_shadow_trades',origin);
    path.searchParams.set('portfolio_id','eq.'+id);
    path.searchParams.set('version','eq.shadow-v1-20261124');
-   path.searchParams.set('select','symbol,scenario,status,entry_fill,exit_fill,realized_pnl_usd,net_return_pct,entry_candle_open_time,exit_candle_close_time,exit_reason,stop_price,target_price');
+   path.searchParams.set('select','symbol,scenario,status,signal_candle_close_time,entry_fill,exit_fill,realized_pnl_usd,net_return_pct,entry_candle_open_time,exit_candle_close_time,exit_reason,stop_price,target_price');
    path.searchParams.set('order','created_at.desc');
    path.searchParams.set('limit',String(Math.max(1,Math.min(500,Number(limit)||500))));
    const rows=await request('GET',path);
