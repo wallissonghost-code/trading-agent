@@ -139,6 +139,7 @@ async function getNewsResearch(){
  newsPromise=(async()=>{
   try{
    const feed=await fetchNewsHeadlines();
+   console.log('News feed audit:',JSON.stringify({items:feed.news.length,sources:feed.sourceStatus.map(({source,ok})=>({source,ok}))}));
    let news=feed.news,persisted=false;
    if(paperStore?.saveNews && news.length){
     try{await paperStore.saveNews(news);persisted=true;}
@@ -150,6 +151,7 @@ async function getNewsResearch(){
      if(saved.length)news=saved;
     }catch(err){console.error('News archive read unavailable:',String(err.message||err).slice(0,110));}
    }
+   console.log('News archive audit:',JSON.stringify({headlines:news.length,persisted}));
    newsCache={status:'ready',news,sourceStatus:feed.sourceStatus,persisted,fetchedAt:feed.fetchedAt};
    newsRefreshAt=Date.now();
    return {ok:true,mode:'NEWS_RESEARCH_ONLY',newsTradingEnabled:false,...newsCache};
