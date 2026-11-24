@@ -215,6 +215,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 @media(max-width:650px){.future-study-stats{grid-template-columns:minmax(0,1fr)}
 .future-study-variant{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .future-study-variant>div:first-child{grid-column:1/-1}}
+.shadow-risk-card{padding:12px 0;border-top:1px solid #29445a;min-width:0}.shadow-risk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}.shadow-risk-grid>div{padding:11px;border:1px solid #304c65;border-radius:10px;background:#08192b;min-width:0}.shadow-risk-grid span{display:block;color:#9eb5c8;font-size:10px;line-height:1.35}.shadow-risk-grid strong{display:block;font-size:14px;margin-top:6px;overflow-wrap:anywhere}@media(max-width:720px){.shadow-risk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:380px){.shadow-risk-grid{grid-template-columns:minmax(0,1fr)}}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Trading Agent V2">
@@ -404,14 +405,25 @@ async function refreshShadowTrades(){
   const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'USD'});
   const pct=n=>n===null?'—':Number(n).toLocaleString('pt-BR',{maximumFractionDigits:3})+'%';
   status.textContent='Parâmetros congelados • Início: '+new Date(data.startedAt).toLocaleString('pt-BR')+' • Nenhuma estratégia aprovada';
-  stats.innerHTML=[['ABERTAS',data.open],['ENCERRADAS',data.closed],['INVALIDADAS POR LACUNAS',data.invalidated]].map(([key,val])=>
+  stats.innerHTML=[['CANDLES OBSERVADOS',data.totalObservedCandles||0],['ABERTAS',data.open],['ENCERRADAS',data.closed],['INVALIDADAS',data.invalidated]].map(([key,val])=>
    '<div><span>'+key+'</span><strong>'+Number(val||0)+'</strong></div>').join('');
   markets.innerHTML=Object.entries(data.bySymbol||{}).map(([symbol,market])=>
-   '<details class="future-study-details"><summary>'+esc(name[symbol]||symbol)+' • '+market.trades+' registros de operações</summary>'+
+   '<details class="future-study-details"><summary>'+esc(name[symbol]||symbol)+' • '+Number(market.capture?.observedCandles||0)+' candles • '+market.trades+' posições</summary>'+
+   '<p class="muted" style="font-size:11px">Lacunas de coleta: '+Number(market.capture?.gaps||0)+' • Último candle: '+
+    (market.capture?.latestCandleCloseTime?new Date(Number(market.capture.latestCandleCloseTime)).toLocaleString('pt-BR'):'—')+'</p>'+
    Object.entries(market.scenarios||{}).map(([key,r])=>
-     '<div class="future-study-variant"><div><strong>'+esc(scenarios[key]||key)+'</strong><small>'+r.closed+' encerradas · '+r.open+' abertas · '+r.invalidated+' invalidadas</small></div>'+
-     '<div><small>P&L virtual realizado</small><strong class="'+(r.totalRealizedPnlUsd>=0?'positive':'negative')+'">'+money(r.totalRealizedPnlUsd)+'</strong></div>'+
-     '<div><small>Retorno médio sobre entrada</small><strong>'+pct(r.averageNetReturnPct)+'</strong></div></div>'
+    '<div class="shadow-risk-card"><div class="between" style="flex-wrap:wrap;gap:8px"><strong>'+esc(scenarios[key]||key)+'</strong><span class="history-pill">Pesquisa • não validada</span></div>'+
+    '<div class="shadow-risk-grid">'+[
+      ['Sinais registrados',Number(r.signalsRecorded||0)],
+      ['Abertas / Encerradas',Number(r.open||0)+' / '+Number(r.closed||0)],
+      ['Lucro/prejuízo realizado',money(r.totalRealizedPnlUsd)],
+      ['Retorno realizado / capital fixo',pct(r.netReturnOnFixedCapitalPct)],
+      ['Acerto das operações',pct(r.winRatePct)],
+      ['Fator de lucro',r.profitFactor===null?'—':Number(r.profitFactor).toLocaleString('pt-BR',{maximumFractionDigits:3})],
+      ['Maior drawdown realizado',pct(r.maxRealizedDrawdownPct)],
+      ['Registros invalidados',Number(r.invalidated||0)]
+    ].map(([key,value])=>'<div><span>'+key+'</span><strong>'+value+'</strong></div>').join('')+'</div>'+
+    '<small class="muted">Drawdown: somente operações encerradas, sem variação intraposição. Dados ainda insuficientes.</small></div>'
    ).join('')+'</details>'
   ).join('');
   const reasons={STOP:'Stop',TARGET:'Alvo',TIME_LIMIT:'Prazo máximo',DATA_GAP:'Histórico incompleto'};
