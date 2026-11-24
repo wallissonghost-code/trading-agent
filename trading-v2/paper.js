@@ -10,12 +10,12 @@ const maxExposure=0.5;
 // Diagnostics only: this classifies why a paper order failed; it never changes sizing or limits.
 export const classifyPaperEntryBlock=({exposureBudget,minNotional=10})=>
  Number.isFinite(exposureBudget)&&exposureBudget<minNotional?'PORTFOLIO_EXPOSURE_LIMIT':'CAPITAL_OR_RISK_LIMIT';
-export const createAccount=()=>({schema:1,startingCash:10000,cash:10000,realizedPnl:0,realizedBySymbol:{},lastMarks:{},lastDecision:null,lastDecisions:{},positions:{},trades:[],lastCandle:{},lastError:{},updatedAt:null});
+export const createAccount=()=>({schema:1,startingCash:10000,cash:10000,realizedPnl:0,realizedBySymbol:{},lastMarks:{},lastDecision:null,lastDecisions:{},positions:{},trades:[],lastCandle:{},lastError:{},dataGaps:{},gapLocks:{},updatedAt:null});
 export function snapshot(account, quotes={}){
   const positions=Object.values(account.positions).map(p=>{const markPrice=quotes[p.symbol]||account.lastMarks?.[p.symbol]||p.entry;return {...p,markPrice,unrealizedPnl:round((markPrice-p.entry)*p.quantity - p.entry*p.quantity*fee - markPrice*p.quantity*fee,2)};});
   const equity=account.cash+positions.reduce((sum,p)=>sum+p.quantity*p.markPrice,0);
   const agentPnl=Object.fromEntries(SYMBOLS.map(symbol=>[symbol,{realizedPnl:round(account.realizedBySymbol?.[symbol]??account.trades.filter(t=>t.symbol===symbol&&t.side==='SELL').reduce((sum,t)=>sum+(t.realizedPnl||0),0),2),unrealizedPnl:round(positions.find(p=>p.symbol===symbol)?.unrealizedPnl||0,2)}]));
-  return {mode:'PAPER_ONLY',currency:'USDT',startingCash:account.startingCash,agentPnl,cash:round(account.cash,2),equity:round(equity,2),realizedPnl:round(account.realizedPnl,2),unrealizedPnl:round(positions.reduce((x,p)=>x+p.unrealizedPnl,0),2),positions,trades:account.trades.slice(0,30),lastCandle:account.lastCandle,lastDecision:account.lastDecision,lastDecisions:account.lastDecisions||{},lastError:account.lastError,updatedAt:account.updatedAt,dataSource:'binance_public_spot',executionEnabled:false,persistence:'local_ephemeral'};
+  return {mode:'PAPER_ONLY',currency:'USDT',startingCash:account.startingCash,agentPnl,cash:round(account.cash,2),equity:round(equity,2),realizedPnl:round(account.realizedPnl,2),unrealizedPnl:round(positions.reduce((x,p)=>x+p.unrealizedPnl,0),2),positions,trades:account.trades.slice(0,30),lastCandle:account.lastCandle,lastDecision:account.lastDecision,lastDecisions:account.lastDecisions||{},lastError:account.lastError,dataGaps:account.dataGaps||{},gapLocks:account.gapLocks||{},updatedAt:account.updatedAt,dataSource:'binance_public_spot',executionEnabled:false,persistence:'local_ephemeral'};
 }
 export function processCandle(account,symbol,candles,{now=new Date().toISOString()}={}){
   if(!SYMBOLS.includes(symbol))throw new Error('Unsupported pair');
@@ -25,6 +25,32 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
   const age=Date.parse(now)-c.closeTime;
   if(!Number.isFinite(age)||age<0||age>20*60*1000)throw new Error('Stale or future market candle');
   if(account.lastCandle[symbol]!==undefined&&c.closeTime<=account.lastCandle[symbol])return {processed:false,reason:'already_processed'};
+  account.dataGaps??={};
+  account.gapLocks??={};
+  account.lastDecisions??={};
+  const previousClose=account.lastCandle[symbol];
+  const missedCandles=Number.isFinite(previousClose)?Math.max(0,Math.floor((c.closeTime-previousClose)/300000)-1):0;
+  // A suspended process cannot retroactively fill trades at historical candle prices.
+  // Record the observed gap once, advance the cursor, and never place a virtual order on resumption.
+  if(missedCandles>0){
+    account.dataGaps[symbol]={detectedAt:now,previousCandleCloseTime:previousClose,
+      resumedCandleCloseTime:c.closeTime,missedCandles,unreconciledPosition:Boolean(account.positions[symbol])};
+    if(account.positions[symbol])account.gapLocks[symbol]=true;
+  }
+  if(missedCandles>0||account.gapLocks[symbol]){
+    const locked=Boolean(account.gapLocks[symbol]);
+    const decision={symbol,candleCloseTime:c.closeTime,observedAt:now,
+      strategy:'EMA_RSI_V1',action:'WAIT',reason:locked?'DATA_GAP_POSITION_LOCK':'DATA_GAP_RESUMED',
+      classification:'unknown',price:c.close,simulated:true,
+      entryGates:{paperOnly:true,continuityVerified:false}};
+    account.lastMarks??={};
+    account.lastMarks[symbol]=c.close;
+    account.lastDecision=decision;
+    account.lastDecisions[symbol]=decision;
+    account.lastCandle[symbol]=c.closeTime;
+    account.updatedAt=now;
+    return {processed:true,reason:decision.reason,missedCandles,locked};
+  }
   account.lastMarks??={};
   account.lastMarks[symbol]=c.close;
   const signal=analyze(candles,account.cash);
