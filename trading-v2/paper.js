@@ -7,6 +7,9 @@ const round=(x,n=8)=>Number(x.toFixed(n));
 const fee=0.001;
 const maxPositions=2;
 const maxExposure=0.5;
+// Diagnostics only: this classifies why a paper order failed; it never changes sizing or limits.
+export const classifyPaperEntryBlock=({exposureBudget,minNotional=10})=>
+ Number.isFinite(exposureBudget)&&exposureBudget<minNotional?'PORTFOLIO_EXPOSURE_LIMIT':'CAPITAL_OR_RISK_LIMIT';
 export const createAccount=()=>({schema:1,startingCash:10000,cash:10000,realizedPnl:0,realizedBySymbol:{},lastMarks:{},lastDecision:null,lastDecisions:{},positions:{},trades:[],lastCandle:{},lastError:{},updatedAt:null});
 export function snapshot(account, quotes={}){
   const positions=Object.values(account.positions).map(p=>{const markPrice=quotes[p.symbol]||account.lastMarks?.[p.symbol]||p.entry;return {...p,markPrice,unrealizedPnl:round((markPrice-p.entry)*p.quantity - p.entry*p.quantity*fee - markPrice*p.quantity*fee,2)};});
@@ -69,6 +72,9 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
     const riskBudget=Math.max(0,0.01*equity);
     const riskPerUnit=(c.close-stop)+2*fee*c.close;
     const exposureBudget=Math.max(0,maxExposure*equity-exposure);
+    // Report the frozen 50% exposure gate separately from free cash or stop-risk sizing.
+    decision.entryGates.portfolioExposureAvailable=exposureBudget>=10;
+    decision.entryGates.exposureRemainingUsdt=round(exposureBudget,2);
     const cashBudget=account.cash;
     const quantity=Math.max(0,Math.min(riskBudget/riskPerUnit,exposureBudget/c.close,cashBudget/(c.close*(1+fee))));
     const notional=quantity*c.close;
@@ -79,7 +85,7 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
       account.trades.unshift({symbol,side:'BUY',reason:'EMA_RSI_WATCH_LONG',price:c.close,quantity:round(quantity),fee:round(notional*fee,8),realizedPnl:null,time:now,candleCloseTime:c.closeTime,simulated:true});
       decision.action='BUY';decision.reason='EMA_RSI_WATCH_LONG';
     }else{
-      decision.reason='CAPITAL_OR_RISK_LIMIT';
+      decision.reason=classifyPaperEntryBlock({exposureBudget});
     }
   }else if(!position&&signal.classification==='watch_long'){
     decision.reason='MAX_OPEN_POSITIONS';
