@@ -140,3 +140,15 @@ test('new losses audit remains collapsed, read-only and isolated in Strategies t
  assert.match(js,/\$\('stopReviewPanel'\)\.addEventListener\('toggle'/);
  assert.doesNotThrow(()=>new Function(js));
 });
+
+test('hypothesis research stays collapsed and never offers live strategy activation',()=>{
+ const view=html.slice(html.indexOf('id="view-estrategias"'),html.indexOf('id="view-noticias"'));
+ assert.match(view,/id="hypothesisScreenPanel"/);
+ assert.match(view,/id="hypothesisScreenResults"/);
+ assert.match(view,/id="refreshHypothesisScreen"/);
+ assert.match(view,/não dinheiro que teria sido economizado/);
+ const script=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+ assert.match(script,/fetch\('\/api\/hypothesis-screen'/);
+ assert.match(script,/\$\('hypothesisScreenPanel'\)\.addEventListener\('toggle'/);
+ assert.doesNotThrow(()=>new Function(script));
+});
