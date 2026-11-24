@@ -534,6 +534,8 @@ else if(path==='/api/gap-reconciliation'||path==='/api/admin/gap-review'){
  const restricted=path==='/api/admin/gap-review';
  if(restricted){
   const access=authorizeReviewRequest(req.headers.authorization);
+  // Operational access trace only. Never log credentials, headers, IPs or portfolio contents.
+  console.info('ADMIN_REVIEW_ACCESS',JSON.stringify({at:new Date().toISOString(),outcome:access.reason,route:'gap-review'}));
   if(!access.authorized){
    const status=access.reason==='NOT_CONFIGURED'?503:401;
    res.writeHead(status,{'content-type':'application/json; charset=utf-8',
