@@ -10,6 +10,7 @@ import { getMultiweekHistory } from './historical-market.js';
 import { runWalkForward } from './walk-forward.js';
 import { diagnoseStrategyLosses } from './loss-diagnostics.js';
 import { compareCooldowns } from './cooldown-research.js';
+import { compareEntryFilters } from './entry-filter-research.js';
 import { auditWalkForwardReports } from './research-audit.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
 import { evaluateHeadlineImpact, summarizeHeadlineImpacts } from './news-impact.js';
@@ -83,7 +84,7 @@ async function getForwardStudy(){
   try{
    const saved=await paperStore.listResearchReports({limit:12});
    const latest=new Map();
-   for(const row of saved){const item=row?.report;if(item?.ok && item.lossDiagnostics?.candidates?.length===3 && item.cooldownResearch?.candidates?.length===3 && SYMBOLS.includes(item.symbol) && !latest.has(item.symbol))latest.set(item.symbol,item);}
+   for(const row of saved){const item=row?.report;if(item?.ok && item.lossDiagnostics?.candidates?.length===3 && item.cooldownResearch?.candidates?.length===3 && item.entryFilterResearch?.scenarios?.length===4 && SYMBOLS.includes(item.symbol) && !latest.has(item.symbol))latest.set(item.symbol,item);}
    if(latest.size===SYMBOLS.length && saved[0]?.completed_at){
     const timestamp=Date.parse(saved[0].completed_at);
     if(Number.isFinite(timestamp)&&Date.now()-timestamp<30*60*1000){
@@ -110,7 +111,8 @@ async function getForwardStudy(){
     const report=runWalkForward(history.candles,{symbol});
     const lossDiagnostics=diagnoseStrategyLosses(history.candles,{symbol});
     const cooldownResearch=compareCooldowns(history.candles,{symbol});
-    const result={ok:true,...report,lossDiagnostics,cooldownResearch,source:history.source,from:history.from,to:history.to,pages:history.pages,
+    const entryFilterResearch=compareEntryFilters(history.candles,{symbol});
+    const result={ok:true,...report,lossDiagnostics,cooldownResearch,entryFilterResearch,source:history.source,from:history.from,to:history.to,pages:history.pages,
        persisted:false};
     if(paperStore?.saveResearchReport){
       try{await paperStore.saveResearchReport(result);result.persisted=true;}
@@ -238,6 +240,26 @@ else if(path==='/api/performance'){
     const summary=performance(recent,paper.status().startingCash||10000);
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
+}
+else if(path==='/api/entry-filter-research'){
+  try{
+   const rows=paperStore?.listResearchReports?await paperStore.listResearchReports({limit:15}):[];
+   const latest=new Map();
+   for(const row of rows){
+    const study=row.report;
+    if(SYMBOLS.includes(study?.symbol)&&study.entryFilterResearch&&!latest.has(study.symbol)){
+      latest.set(study.symbol,{...study.entryFilterResearch,completedAt:row.completed_at});
+    }
+   }
+   data={ok:true,mode:'RESEARCH_ONLY',experiment:'ENTRY_FILTERS_V1',
+    results:SYMBOLS.map(symbol=>latest.has(symbol)?
+     {ok:true,symbol,...latest.get(symbol)}:
+     {ok:false,symbol,reason:'Aguardando estudo atualizado no Supabase'}),
+    autoPromotionEnabled:false,orderExecutionEnabled:false,newsTradingEnabled:false};
+  }catch(error){
+   console.error('Entry filter research read failed:',String(error.message||error).slice(0,140));
+   data={ok:false,mode:'RESEARCH_ONLY',error:'Resultados de filtros indisponíveis',results:[]};
+  }
 }
 else if(path==='/api/cooldown-research'){
   try{
