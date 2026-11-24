@@ -222,6 +222,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 .monitor-timeline-robot{padding:12px 0;border-top:1px solid #29435c}.monitor-timeline-track{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;margin:12px 0 5px;width:100%;min-width:0}.monitor-timeline-cell{height:29px;border-radius:3px;position:relative;min-width:0}.timeline-full{background:#2cb596}.timeline-partial{background:#bf9561}.timeline-unknown{background:#405268}.monitor-timeline-cell.has-incident{outline:2px solid #fa8c63;outline-offset:0}.timeline-alert-dot{position:absolute;top:-5px;right:-4px;border-radius:50%;height:8px;width:8px;background:#ff916b}.monitor-timeline-axis small{font-size:10px;color:#91a5bb}.monitor-timeline-legend{display:flex;gap:10px;flex-wrap:wrap;padding:8px 0 10px}.monitor-timeline-legend span{display:flex;align-items:center;gap:5px;font-size:10px;color:#9eb8ca}.monitor-timeline-legend i{display:inline-block;width:10px;height:10px;border-radius:2px}.monitor-timeline-legend .timeline-incident{background:#ff916b}@media(max-width:480px){.monitor-timeline-track{gap:2px}.monitor-timeline-cell{height:25px}}
 .risk-explain-market{margin:10px 0;padding:12px;border:1px solid #34516a;border-radius:12px;background:#091b30;min-width:0}.risk-explain-metrics{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.risk-explain-metrics span{font-size:11px;border:1px solid #324a65;padding:7px;border-radius:9px;color:#a9bfcb}.risk-explain-metrics b{color:#f0f8ff}.risk-explain-line{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;padding:8px 0;border-top:1px solid #273e55;font-size:12px;overflow-wrap:anywhere}.risk-explain-line strong{font-size:12px}@media(max-width:460px){.risk-explain-line{grid-template-columns:minmax(0,1fr)}}
 .paper-agent-decisions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.paper-agent-decision{padding:12px;border:1px solid #35536a;border-radius:12px;background:#081b30;min-width:0}.paper-agent-decision small{display:block;font-size:11px;line-height:1.5;margin-top:10px}.paper-agent-gates{display:grid;gap:5px}.paper-agent-gates>span{font-size:11px;color:#a9c2d4;overflow-wrap:anywhere}@media(max-width:790px){.paper-agent-decisions{grid-template-columns:minmax(0,1fr)}}
+.stop-review-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.stop-review-card{padding:12px;min-width:0;border:1px solid #355169;border-radius:12px;background:#091c30}.stop-review-kpis{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0}.stop-review-kpis span{font-size:11px;color:#a7c0d3}.stop-review-kpis strong{display:block;color:#ecf5ff;font-size:14px;margin-top:4px}.stop-review-line{border-top:1px solid #314960;padding:10px 0;overflow-wrap:anywhere}.stop-review-line strong{font-size:12px}.stop-review-line small{display:block;font-size:11px;line-height:1.5;color:#aac0d1}@media(max-width:850px){.stop-review-grid{grid-template-columns:minmax(0,1fr)}}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Trading Agent V2">
@@ -297,6 +298,16 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
  <p id="researchRiskStatus" class="muted" style="font-size:12px" aria-live="polite">Abrir para consultar os indicadores.</p>
  <div id="researchRiskResults"></div>
  <p class="performance-note">O preço de entrada é apenas uma aproximação pelo fechamento; stops e alvos futuros não são garantidos. Gaps podem causar perdas maiores do que o risco calculado.</p>
+</details>
+<details class="panel future-study-panel" id="stopReviewPanel" style="margin-bottom:15px" aria-label="Auditoria de stops e contexto de mercado">
+ <summary style="cursor:pointer;font-weight:800;font-size:16px">Auditoria de perdas e stops <small class="muted" style="font-weight:400">• estudo prospectivo</small></summary>
+ <div class="between" style="flex-wrap:wrap;gap:9px;margin:12px 0">
+  <p class="muted" style="font-size:12px;margin:0;max-width:650px">Analisa operações já encerradas e o contexto conhecido no candle que gerou cada sinal. Não recalcula histórico perdido nem altera as estratégias.</p>
+  <button id="refreshStopReview" type="button">Analisar perdas</button>
+ </div>
+ <p id="stopReviewStatus" class="muted" style="font-size:12px">Abra a seção para consultar os resultados.</p>
+ <div id="stopReviewResults" class="stop-review-grid"></div>
+ <p class="performance-note">ATR alto/baixo usa 0,25% apenas como referência descritiva. Movimento dos últimos seis candles não prova uma tendência sustentável. Sinais coincidentes entre cenários não representam operações independentes. Nenhuma estratégia aprovada.</p>
 </details>
 <div class="panel future-study-panel" aria-label="Operações completas experimentais" style="margin-bottom:15px">
  <div class="between" style="flex-wrap:wrap;margin-bottom:12px">
@@ -621,6 +632,35 @@ async function refreshResearchRisk(){
     ' • Perda no stop (com custos): '+(risk.estimatedStopPnLUsd===null?'—':money(risk.estimatedStopPnLUsd))+'</p></div>';
   }).join('');
  }catch(error){status.textContent='Análise indisponível: '+error.message;root.innerHTML='';}
+ finally{btn.disabled=false;}
+}
+async function refreshStopReview(){
+ const btn=$('refreshStopReview'),status=$('stopReviewStatus'),root=$('stopReviewResults');
+ btn.disabled=true;
+ try{
+  const res=await fetch('/api/stop-review',{cache:'no-store'});
+  if(!res.ok)throw Error('HTTP '+res.status);
+  const data=await res.json();if(!data.ok)throw Error(data.error||'Auditoria indisponível');
+  const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const reasons={STOP:'Stop atingido',TARGET:'Alvo atingido',TIME_LIMIT:'Prazo máximo',UNKNOWN:'Sem motivo informado'};
+  const money=x=>Number(x).toLocaleString('pt-BR',{style:'currency',currency:'USD'});
+  const pct=x=>x===null?'—':Number(x).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
+  const volatility={ATR_HIGH:'ATR ≥ 0,25%',ATR_LOW:'ATR < 0,25%',UNKNOWN:'Volatilidade desconhecida'};
+  const trend={RISING_6_BARS:'Últimos 6 candles subiram',FALLING_6_BARS:'Últimos 6 candles caíram',FLAT_6_BARS:'Últimos 6 candles estáveis',UNKNOWN:'Tendência curta desconhecida'};
+  status.textContent=data.closed+' operações de cenários encerradas • '+
+    data.uniquePerSymbolSignalCandles+' candles de sinal distintos por mercado • '+
+    data.losses+' resultados negativos'+(data.partialTrades||data.partialObservations?' • Histórico parcial':'');
+  root.innerHTML=Object.entries(data.bySymbol||{}).map(([symbol,x])=>
+   '<div class="stop-review-card"><div class="between" style="gap:6px;flex-wrap:wrap"><strong>'+esc(names[symbol]||symbol)+'</strong><span class="history-pill">'+x.closed+' encerradas</span></div>'+
+   '<div class="stop-review-kpis"><span>Stops <strong>'+x.stopExits+'</strong></span><span>Tempo <strong>'+x.timeLimitExits+'</strong></span><span>Alvos <strong>'+x.targetExits+'</strong></span><span>Resultado teórico <strong class="'+(x.netPnlUsd>=0?'positive':'negative')+'">'+money(x.netPnlUsd)+'</strong></span></div>'+
+   '<p class="muted" style="font-size:11px">Sinais distintos: '+x.uniqueSignalCandles+' • Contexto indisponível: '+x.missingSignalContext+'</p>'+
+   (x.recent||[]).slice(0,5).map(t=>
+    '<div class="stop-review-line"><div class="between" style="gap:6px;flex-wrap:wrap"><strong>'+esc(t.scenario)+'</strong><span class="'+(t.pnlUsd>=0?'positive':'negative')+'">'+money(t.pnlUsd)+'</span></div>'+
+    '<small>'+esc(reasons[t.exitReason]||t.exitReason)+' • Stop '+pct(t.stopDistancePct)+' • ATR '+pct(t.signalAtrPct)+'</small>'+
+    '<small>'+esc(volatility[t.volatilityRegime]||'Contexto desconhecido')+' • '+esc(trend[t.trendRegime]||'Contexto desconhecido')+'</small></div>'
+   ).join('')+'</div>'
+  ).join('');
+ }catch(error){status.textContent='Auditoria indisponível: '+error.message;root.innerHTML='';}
  finally{btn.disabled=false;}
 }
 async function refreshShadowTrades(){
@@ -1008,6 +1048,8 @@ $('refreshCooldownResearch').addEventListener('click',refreshCooldownResearch);
 $('refreshEntryFilters').addEventListener('click',refreshEntryFilters);
 $('refreshForwardStudy').addEventListener('click',refreshForwardStudy);
 $('refreshShadowTrades').addEventListener('click',refreshShadowTrades);
+$('refreshStopReview').addEventListener('click',refreshStopReview);
+$('stopReviewPanel').addEventListener('toggle',()=>{if($('stopReviewPanel').open)void refreshStopReview();});
 $('refreshResearchRisk').addEventListener('click',refreshResearchRisk);
 $('researchRiskPanel').addEventListener('toggle',()=>{if($('researchRiskPanel').open)void refreshResearchRisk();});
 $('refreshMonitorHealth').addEventListener('click',refreshMonitorHealth);
