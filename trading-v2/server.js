@@ -291,6 +291,42 @@ async function getForwardSnapshot(){
    autoPromotionEnabled:false,realOrdersEnabled:false};
  }
 }
+// Persist meaningful research-health transitions, not missing-trade counts.
+// The free Render process cannot report incidents while the process is sleeping.
+let monitoringSyncPromise=null;
+async function syncMonitoringIncidents(){
+ if(!paperStore?.recordMonitoringTransitions||!paperStore?.listShadowObservations)
+  return {ok:false,reason:'Persistence unavailable'};
+ if(monitoringSyncPromise)return monitoringSyncPromise;
+ monitoringSyncPromise=(async()=>{
+  const observations=await paperStore.listShadowObservations({limit:360});
+  const summary=summarizeMonitoring({observations,capture:forwardCaptureState,
+   serviceStartedAt:new Date(boot).toISOString()});
+  return paperStore.recordMonitoringTransitions(summary.symbols);
+ })();
+ try{return await monitoringSyncPromise;}
+ catch(err){
+  console.error('Monitoring incident persistence:',String(err.message||err).slice(0,160));
+  return {ok:false,error:'Monitor incidents write unavailable'};
+ }finally{monitoringSyncPromise=null;}
+}
+async function getMonitoringAlerts(){
+ if(!paperStore?.listMonitoringEvents||!paperStore?.listMonitoringStates)
+  return {ok:false,error:'Histórico de incidentes não configurado',mode:'READ_ONLY_RESEARCH_ALERTS'};
+ try{
+  const [events,states]=await Promise.all([
+   paperStore.listMonitoringEvents({limit:45}),
+   paperStore.listMonitoringStates()
+  ]);
+  return {ok:true,mode:'READ_ONLY_RESEARCH_ALERTS',events,states,
+   scope:'COLLECTOR_WHILE_SERVICE_AWAKE',
+   caveat:'O servidor gratuito não identifica o instante exato de quedas ocorridas enquanto está suspenso. Eventos são registrados na próxima checagem disponível.',
+   orderExecutionEnabled:false,autoPromotionEnabled:false};
+ }catch(err){
+  console.error('Monitoring event history unavailable:',String(err.message||err).slice(0,160));
+  return {ok:false,mode:'READ_ONLY_RESEARCH_ALERTS',error:'Histórico de incidentes temporariamente indisponível'};
+ }
+}
 async function getMonitoringHealth(){
  if(!paperStore?.listShadowObservations)
   return {ok:false,error:'Monitoramento de pesquisa não configurado',mode:'READ_ONLY_RESEARCH_HEALTH'};
@@ -355,6 +391,7 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
+else if(path==='/api/monitor-alerts')data=await getMonitoringAlerts();
 else if(path==='/api/monitor-health')data=await getMonitoringHealth();
 else if(path==='/api/shadow-trades')data=await getShadowTradeReport();
 else if(path==='/api/forward-study')data=await getForwardSnapshot();
@@ -468,6 +505,8 @@ server.listen(PORT,'0.0.0.0',()=>console.log('trading-agent preview on '+PORT));
 // Best effort collection while a free-tier service is awake; Render can suspend idle instances.
 // Read-only research cannot change the paper runner or execute exchange orders.
 setTimeout(()=>void runForwardCapture(),45000).unref();
+setTimeout(()=>void syncMonitoringIncidents(),60000).unref();
+setInterval(()=>void syncMonitoringIncidents(),90000).unref();
 setInterval(()=>void runForwardCapture(),90000).unref();
 setTimeout(()=>getNewsResearch().catch(err=>console.error('Scheduled news collection:',err.message)),30000).unref();
 setTimeout(()=>void getForwardStudy().catch(err=>console.error('Scheduled walk-forward research:',err.message)),25000).unref();
