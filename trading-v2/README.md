@@ -93,6 +93,16 @@ O `paper runner` atualiza o preço visível de cada ativo somente **depois** de 
 
 Essas proteções não reconstituem candles perdidos, não garantem monitoramento 24/7 no Render free, não alteram os critérios de entrada/saída e não habilitam ordens reais.
 
+## Qualidade das evidências de paper trading
+
+A rota `GET /api/paper-evidence` e a seção **Qualidade do teste dos robôs • PAPER** mostram separadamente, por ALPHA/BTC, NOVA/ETH e ORION/SOL:
+
+- Idade e atualização do último candle **efetivamente processado pelo motor paper**, erros da coleta, posição aberta, travas por lacunas e persistência da carteira.
+- Cobertura de candles registrada pelo **coletor experimental shadow** nas últimas 6 horas (72 slots por ativo) e últimas 24 horas (288 slots por ativo). Esses registros são **independentes** da execução paper: não são uptime do Render, não demonstram que o stop de uma posição foi acompanhado e não autorizam supor ordens executadas.
+- Motivos por ativo pelos quais os dados são insuficientes para concluir qualidade operacional. O relatório exige, como futura evidência, pelo menos 7 dias de **diário contínuo de candles paper auditados**, que **ainda não está implementado**. A lista recente de trades da carteira é limitada; não é amostra histórica suficiente para validar rentabilidade.
+
+Esta implementação é somente diagnóstica. `realOrdersEnabled=false`, `automaticPromotionEnabled=false` e `noAutoHostingUpgrade=true`. Não concede aprovação de estratégias, não compra hospedagem e não altera ordens ou os parâmetros de risco.
+
 ## Testes
 
 `npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-agent-v2.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
