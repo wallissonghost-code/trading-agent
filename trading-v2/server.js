@@ -273,3 +273,10 @@ res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-contr
 res.end(req.method==='HEAD'?undefined:JSON.stringify(data));
 });
 server.listen(PORT,'0.0.0.0',()=>console.log('trading-agent preview on '+PORT));
+// Best effort collection while a free-tier service is awake; Render can suspend idle instances.
+// Read-only research cannot change the paper runner or execute exchange orders.
+setTimeout(()=>getNewsResearch().catch(err=>console.error('Scheduled news collection:',err.message)),30000).unref();
+setInterval(()=>{
+ void getNewsResearch().catch(err=>console.error('Scheduled news collection:',err.message));
+ getNewsImpactStatus();
+},20*60*1000).unref();
