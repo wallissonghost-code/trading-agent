@@ -58,3 +58,29 @@ test('aggregate health does not mistake missing observations for healthy trading
  p.lastError.ETHUSDT='timeout';
  assert.equal(summarizePaperAgents(p,{now}).collectionHealth,'ERROR');
 });
+
+
+test('persisted gap quarantine is distinct from ordinary trading and survives into diagnostics',()=>{
+ const p=base();
+ p.positions=[{symbol:'BTCUSDT',entry:100}];
+ p.dataGaps={BTCUSDT:{missedCandles:9,detectedAt:new Date(now-20000).toISOString(),
+   previousCandleCloseTime:now-3100000,resumedCandleCloseTime:now-60000}};
+ p.gapLocks={BTCUSDT:true};
+ const report=summarizePaperAgents(p,{now});
+ const btc=report.agents[0];
+ assert.equal(btc.state,'LACUNA_HISTORICA');
+ assert.equal(btc.gapLocked,true);
+ assert.equal(btc.lastGap.missedCandles,9);
+ assert.equal(report.collectionHealth,'GAP_LOCK');
+ assert.equal(report.allCurrent,false);
+ assert.equal(report.realOrdersEnabled,false);
+});
+test('stale feed still shows a historical gap quarantine, not a healthy status',()=>{
+ const p=base();
+ p.lastCandle.SOLUSDT=now-3600000;
+ p.gapLocks={SOLUSDT:true};
+ const report=summarizePaperAgents(p,{now});
+ assert.equal(report.collectionHealth,'STALE');
+ assert.equal(report.agents[2].state,'COLETA_ATRASADA');
+ assert.equal(report.agents[2].gapLocked,true);
+});
