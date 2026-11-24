@@ -26,12 +26,35 @@ test('news archive exposes publisher metadata but never Supabase keys',async()=>
    assert.equal(options.headers.apikey,'server-secret');
    const rows=JSON.parse(options.body);
    assert.equal(rows[0].source,'Federal Reserve');
+   assert.equal(rows[0].first_seen_at,item.fetchedAt);
+   assert.match(options.headers.prefer,/ignore-duplicates/);
    return {ok:true,text:async()=>JSON.stringify(rows)};
   }
   assert.equal(request.searchParams.get('limit'),'25');
-  return {ok:true,text:async()=>JSON.stringify([{source:item.source,url:item.url,title:item.title,published_at:item.publishedAt,fetched_at:item.fetchedAt,related_symbols:[],context_category:'MACRO'}])};
+  return {ok:true,text:async()=>JSON.stringify([{source:item.source,url:item.url,title:item.title,published_at:item.publishedAt,fetched_at:item.fetchedAt,first_seen_at:item.fetchedAt,related_symbols:[],context_category:'MACRO'}])};
  }});
  await store.saveNews([item]);
- assert.deepEqual(await store.listNews(),[item]);
+ assert.deepEqual(await store.listNews(),[{...item,firstSeenAt:item.fetchedAt}]);
  assert.equal(called,2);
+});
+
+test('outcome storage is idempotent and does not expose a trade action',async()=>{
+ const report={source:'CoinDesk',url:'https://www.coindesk.com/markets/abc',symbol:'BTCUSDT',observedAfter:'2026-11-23T21:00:00Z',baselineCandleOpenTime:1795467900000,baselinePrice:100,outcomeCandleCloseTime:1795471499999,outcomePrice:101,returnPct:1};
+ let count=0;
+ const store=createSupabaseStore({url,key:'secret',fetchFn:async(request,options)=>{
+  count++;
+  assert.equal(options.headers.apikey,'secret');
+  assert.equal(request.pathname,'/rest/v1/trading_news_price_outcomes');
+  if(options.method==='POST'){
+   assert.match(options.headers.prefer,/ignore-duplicates/);
+   const body=JSON.parse(options.body);
+   assert.equal(body[0].horizon_minutes,60);
+   return {ok:true,text:async()=>'[]'};
+  }
+  return {ok:true,text:async()=>JSON.stringify([{source:report.source,url:report.url,symbol:report.symbol,observed_after:report.observedAfter,return_pct:report.returnPct,baseline_price:report.baselinePrice,outcome_price:report.outcomePrice,evaluated_at:'2026-11-23T22:00:00Z'}])};
+ }});
+ assert.deepEqual(await store.saveNewsOutcomes([report]),[]);
+ const outcomes=await store.listNewsOutcomes();
+ assert.equal(outcomes[0].returnPct,1);
+ assert.equal(count,2);
 });
