@@ -55,7 +55,14 @@ export function summarizePaperAgents(paper,{now=Date.now(),staleAfterMs=20*60*10
    unrealizedPnl:paper?.agentPnl?.[symbol]?.unrealizedPnl??null,
    errorPresent:Boolean(fault||persistedFailure),dataSource:paper?.dataSource||'unavailable'};
  });
+ const anyError=results.some(x=>x.state==='ERRO');
+ const anyStale=results.some(x=>x.state==='COLETA_ATRASADA');
+ const anyMissing=results.some(x=>x.state==='SEM_DADOS');
+ const health=anyError?'ERROR':anyStale?'STALE':anyMissing?'INSUFFICIENT_DATA':results.every(x=>['OPERANDO','AGUARDANDO_SINAL'].includes(x.state))?'CURRENT':'PARTIAL';
+ const latestCandleMs=Math.max(...results.map(x=>safeDate(x.lastCandleCloseAt)??-1));
  return {ok:paper?.ready===true&&!paper?.storageError,mode:'PAPER_ONLY',
+  collectionHealth:health,allCurrent:health==='CURRENT',
+  lastCandleCloseAt:latestCandleMs>=0?iso(latestCandleMs):null,
   generatedAt:iso(now),staleAfterSeconds:staleAfterMs/1000,
   realOrdersEnabled:false,source:'paper_runner_snapshot',agents:results,
   note:'AGUARDANDO_CANDLE e AVALIACAO_PENDENTE pertencem ao estudo prospectivo, não à execução paper; consultar /api/prospective-screens.'};
