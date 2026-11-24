@@ -47,10 +47,19 @@ export function summarizeScreenStudy({study,observations=[],outcomes=[],now=Date
    return count+(Number.isSafeInteger(distance)&&distance>300000&&distance%300000===0?distance/300000-1:0);
   },0);
   const latest=items.at(-1);
-  const ageMinutes=latest&&Number.isFinite(Number(latest.candle_close_time))&&Number.isFinite(now)?
-   Math.max(0,Math.round((now-Number(latest.candle_close_time))/60000)):null;
+  const latestClose=Number(latest?.candle_close_time);
+  const ageMinutes=latest&&Number.isSafeInteger(latestClose)&&Number.isFinite(now)?
+   Math.max(0,Math.round((now-latestClose)/60000)):null;
   const freshness=ageMinutes===null?'NO_OBSERVATIONS':ageMinutes>15?'DELAYED':'RECENT';
+  // A trailing period without candles is missing coverage, even when the stored
+  // first-to-last series looked complete (e.g., a sleeping free-tier server).
+  const trailingMissingSlots=latest&&Number.isSafeInteger(latestClose)&&Number.isFinite(now)?
+   Math.max(0,Math.floor((now-(latestClose+1))/300000)):0;
+  const expectedSlotsSinceFirst=items.length+missingCandleSlots+trailingMissingSlots;
   return [symbol,{observedCandles:items.length,gapIntervals,missingCandleSlots,
+   trailingMissingSlots,expectedSlotsSinceFirst,
+   coverageSinceFirstPct:expectedSlotsSinceFirst?
+    round(100*items.length/expectedSlotsSinceFirst):null,
    coveragePct:items.length?round(100*items.length/(items.length+missingCandleSlots)):null,
    latestObservedAt:latest?.observed_at||null,
    latestCandleCloseTime:latest?.candle_close_time??null,
@@ -60,10 +69,15 @@ export function summarizeScreenStudy({study,observations=[],outcomes=[],now=Date
     const rows=scored.filter(x=>x.scenario===key&&Number.isFinite(Number(x.modeled_net_return_pct)));
     const completed=new Set(rows.map(x=>Number(x.signal_candle_close_time)));
     const missing=signs.filter(x=>!completed.has(Number(x.candle_close_time)));
-    const awaitingNextCandle=missing.filter(x=>!candleTimes.has(Number(x.candle_close_time)+300000)).length;
-    const unscoredWithNextCandle=missing.length-awaitingNextCandle;
+    const withoutNextCandle=missing.filter(x=>!candleTimes.has(Number(x.candle_close_time)+300000));
+    // Never treat a days-old missing next candle as an outcome still waiting.
+    // Allow a generous observation buffer before marking the chance as expired.
+    const expiredWithoutNextCandle=withoutNextCandle.filter(x=>
+     Number.isFinite(now)&&now>Number(x.candle_close_time)+300000+660000).length;
+    const awaitingNextCandle=withoutNextCandle.length-expiredWithoutNextCandle;
+    const unscoredWithNextCandle=missing.length-withoutNextCandle.length;
     return [key,{signals:signs.length,scored:rows.length,
-     awaitingNextCandle,unscoredWithNextCandle,
+     awaitingNextCandle,expiredWithoutNextCandle,unscoredWithNextCandle,
      positiveOutcomes:rows.filter(x=>Number(x.modeled_net_return_pct)>0).length,
      averageModeledNetReturnPct:rows.length?round(rows.reduce((n,x)=>n+Number(x.modeled_net_return_pct),0)/rows.length):null,
      enoughEvidence:false,approved:false}];
@@ -72,5 +86,5 @@ export function summarizeScreenStudy({study,observations=[],outcomes=[],now=Date
  return {ok:true,mode:'FROZEN_PROSPECTIVE_NEXT_BAR',version:SCREEN_VERSION,
   startedAt:study.started_at,bySymbol,observations:observations.length,outcomes:outcomes.length,
   sampleAdequacy:'INSUFFICIENT',dataTimestamp:new Date(now).toISOString(),completenessRule:'CANDLE_CONTIGUITY_REQUIRED',autoPromotionEnabled:false,realOrdersEnabled:false,
-  caution:'Resultados de um único candle futuro observado com taxas e slippage, não P&L de posições com stop e alvo. Sinais/cenários dependentes; seleção realizada em pesquisa anterior. Sem preenchimento de intervalos perdidos e sem aprovação automática.'};
+  caution:'Resultados de um único candle futuro observado com taxas e slippage, não P&L de posições com stop e alvo. Sinais/cenários dependentes; seleção realizada em pesquisa anterior. Cobertura desde o primeiro registro inclui intervalos perdidos após a última coleta; histórico anterior não é estimado. Sem preenchimento de intervalos perdidos e sem aprovação automática.'};
 }
