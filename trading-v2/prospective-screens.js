@@ -32,7 +32,7 @@ export function buildScreenObservation(candles,{symbol,now=Date.now(),studyStart
   studyMode:'FROZEN_PROSPECTIVE_NEXT_BAR',executionEnabled:false};
 }
 const round=n=>Math.round(n*10000)/10000;
-export function summarizeScreenStudy({study,observations=[],outcomes=[]}={}){
+export function summarizeScreenStudy({study,observations=[],outcomes=[],now=Date.now()}={}){
  verifyScreenStudy(study);
  if(!Array.isArray(observations)||!Array.isArray(outcomes))throw Error('Invalid screen archive');
  const bySymbol=Object.fromEntries(['BTCUSDT','ETHUSDT','SOLUSDT'].map(symbol=>{
@@ -42,9 +42,19 @@ export function summarizeScreenStudy({study,observations=[],outcomes=[]}={}){
   const candleTimes=new Set(items.map(x=>Number(x.candle_close_time)));
   const gapIntervals=items.slice(1).reduce((count,x,i)=>
    count+(Number(x.candle_close_time)-Number(items[i].candle_close_time)>300000?1:0),0);
+  const missingCandleSlots=items.slice(1).reduce((count,x,i)=>{
+   const distance=Number(x.candle_close_time)-Number(items[i].candle_close_time);
+   return count+(Number.isSafeInteger(distance)&&distance>300000&&distance%300000===0?distance/300000-1:0);
+  },0);
   const latest=items.at(-1);
-  return [symbol,{observedCandles:items.length,gapIntervals,
+  const ageMinutes=latest&&Number.isFinite(Number(latest.candle_close_time))&&Number.isFinite(now)?
+   Math.max(0,Math.round((now-Number(latest.candle_close_time))/60000)):null;
+  const freshness=ageMinutes===null?'NO_OBSERVATIONS':ageMinutes>15?'DELAYED':'RECENT';
+  return [symbol,{observedCandles:items.length,gapIntervals,missingCandleSlots,
+   coveragePct:items.length?round(100*items.length/(items.length+missingCandleSlots)):null,
    latestObservedAt:latest?.observed_at||null,
+   latestCandleCloseTime:latest?.candle_close_time??null,
+   ageMinutes,freshness,
    scenarios:Object.fromEntries(SCREEN_KEYS.map(key=>{
     const signs=items.filter(x=>x.signals?.[key]===true);
     const rows=scored.filter(x=>x.scenario===key&&Number.isFinite(Number(x.modeled_net_return_pct)));
@@ -61,6 +71,6 @@ export function summarizeScreenStudy({study,observations=[],outcomes=[]}={}){
  }));
  return {ok:true,mode:'FROZEN_PROSPECTIVE_NEXT_BAR',version:SCREEN_VERSION,
   startedAt:study.started_at,bySymbol,observations:observations.length,outcomes:outcomes.length,
-  sampleAdequacy:'INSUFFICIENT',completenessRule:'CANDLE_CONTIGUITY_REQUIRED',autoPromotionEnabled:false,realOrdersEnabled:false,
+  sampleAdequacy:'INSUFFICIENT',dataTimestamp:new Date(now).toISOString(),completenessRule:'CANDLE_CONTIGUITY_REQUIRED',autoPromotionEnabled:false,realOrdersEnabled:false,
   caution:'Resultados de um único candle futuro observado com taxas e slippage, não P&L de posições com stop e alvo. Sinais/cenários dependentes; seleção realizada em pesquisa anterior. Sem preenchimento de intervalos perdidos e sem aprovação automática.'};
 }
