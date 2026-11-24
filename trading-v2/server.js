@@ -278,6 +278,8 @@ server.listen(PORT,'0.0.0.0',()=>console.log('trading-agent preview on '+PORT));
 // Best effort collection while a free-tier service is awake; Render can suspend idle instances.
 // Read-only research cannot change the paper runner or execute exchange orders.
 setTimeout(()=>getNewsResearch().catch(err=>console.error('Scheduled news collection:',err.message)),30000).unref();
+setTimeout(()=>void getForwardStudy().catch(err=>console.error('Scheduled walk-forward research:',err.message)),25000).unref();
+setInterval(()=>void getForwardStudy().catch(err=>console.error('Scheduled walk-forward research:',err.message)),4*60*60*1000).unref();
 setInterval(()=>{
  void getNewsResearch().catch(err=>console.error('Scheduled news collection:',err.message));
  getNewsImpactStatus();
