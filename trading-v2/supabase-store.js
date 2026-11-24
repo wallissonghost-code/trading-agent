@@ -48,6 +48,52 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
    if(!Array.isArray(rows))throw Error('Invalid monitor state response');
    return rows;
   },
+  async getFrozenScreenStudy(){
+   const path=new URL('/rest/v1/trading_screen_studies',origin);
+   path.searchParams.set('version','eq.screens-v1-20261124');
+   path.searchParams.set('select','version,started_at,config,horizon_minutes,fee_bps,slippage_bps');
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows)||rows.length!==1)throw Error('New screen study missing');
+   return rows[0];
+  },
+  async insertScreenObservation(record){
+   if(record?.version!=='screens-v1-20261124'||
+    !['BTCUSDT','ETHUSDT','SOLUSDT'].includes(record.symbol)||
+    ![record.candleOpenTime,record.candleCloseTime].every(Number.isSafeInteger)||
+    ![record.candleOpen,record.candleClose,record.atrPct,record.momentum6Pct].every(Number.isFinite)||
+    ['reference','atr_at_least_025','momentum_6_positive','atr_and_momentum'].some(key=>typeof record.signals?.[key]!=='boolean'))
+    throw Error('Invalid frozen screen snapshot');
+   const path=new URL('/rest/v1/trading_screen_candles',origin);
+   const row={portfolio_id:id,version:record.version,symbol:record.symbol,
+    candle_open_time:record.candleOpenTime,candle_close_time:record.candleCloseTime,
+    candle_open:record.candleOpen,candle_close:record.candleClose,
+    atr_pct:record.atrPct,momentum_6_pct:record.momentum6Pct,signals:record.signals};
+   const rows=await request('POST',path,row,{ignoreDuplicates:true});
+   if(!Array.isArray(rows))throw Error('Prospective screen insert unacknowledged');
+   return rows.length>0;
+  },
+  async listScreenObservations({limit=360}={}){
+   const path=new URL('/rest/v1/trading_screen_candles',origin);
+   path.searchParams.set('portfolio_id','eq.'+id);
+   path.searchParams.set('version','eq.screens-v1-20261124');
+   path.searchParams.set('select','symbol,candle_close_time,observed_at,signals');
+   path.searchParams.set('order','observed_at.desc');
+   path.searchParams.set('limit',String(Math.max(1,Math.min(900,Number(limit)||360))));
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows))throw Error('Invalid screen observations');
+   return rows;
+  },
+  async listScreenOutcomes({limit=600}={}){
+   const path=new URL('/rest/v1/trading_screen_outcomes',origin);
+   path.searchParams.set('portfolio_id','eq.'+id);
+   path.searchParams.set('version','eq.screens-v1-20261124');
+   path.searchParams.set('select','symbol,scenario,signal_candle_close_time,outcome_candle_close_time,modeled_net_return_pct,evaluated_at');
+   path.searchParams.set('order','evaluated_at.desc');
+   path.searchParams.set('limit',String(Math.max(1,Math.min(1000,Number(limit)||600))));
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows))throw Error('Invalid screen outcomes');
+   return rows;
+  },
   async getFrozenShadowStudy(version='shadow-v1-20261124'){
    const path=new URL('/rest/v1/trading_shadow_studies',origin);
    path.searchParams.set('version','eq.'+version);
