@@ -3,7 +3,7 @@ import { SYMBOLS } from './market.js';
 
 export const AGENT_STATES=Object.freeze([
  'OPERANDO','AGUARDANDO_SINAL','AGUARDANDO_CANDLE','COLETA_ATRASADA',
- 'AVALIACAO_PENDENTE','ERRO','SEM_DADOS','PAUSADO'
+ 'AVALIACAO_PENDENTE','ERRO','SEM_DADOS','PAUSADO','LACUNA_HISTORICA'
 ]);
 const NAMES={BTCUSDT:'ALPHA',ETHUSDT:'NOVA',SOLUSDT:'ORION'};
 const reasonLabels={
@@ -17,7 +17,9 @@ const reasonLabels={
  MAX_OPEN_POSITIONS:'Quantidade máxima de posições abertas',
  EMA_RSI_WATCH_LONG:'Entrada simulada registrada',
  STOP_LOSS:'Stop de simulação executado',
- TAKE_PROFIT:'Alvo de simulação executado'
+ TAKE_PROFIT:'Alvo de simulação executado',
+ DATA_GAP_RESUMED:'Candles perdidos registrados; primeira vela após a pausa não gera operação',
+ DATA_GAP_POSITION_LOCK:'Posição virtual preservada e execução bloqueada até reconciliação da lacuna'
 };
 const iso=(n)=>Number.isFinite(n)?new Date(n).toISOString():null;
 const safeDate=(v)=>{if(v===undefined||v===null||v==='')return null;const n=typeof v==='number'?v:Date.parse(v);return Number.isFinite(n)?n:null;};
@@ -31,6 +33,8 @@ export function summarizePaperAgents(paper,{now=Date.now(),staleAfterMs=20*60*10
   const decisionTime=safeDate(decision?.observedAt);
   const ageMs=closeTime===null?null:Math.max(0,now-closeTime);
   const fault=paper?.lastError?.[symbol]||null;
+  const gap=paper?.dataGaps?.[symbol]||null;
+  const gapLocked=paper?.gapLocks?.[symbol]===true;
   const persistedFailure=paper?.storageError||null;
   const initialized=paper?.ready===true;
   let state,reason;
@@ -42,6 +46,8 @@ export function summarizePaperAgents(paper,{now=Date.now(),staleAfterMs=20*60*10
    state='SEM_DADOS';reason='Ainda não há decisão persistida para este mercado';
   }else if(closeTime>now+60000||ageMs>staleAfterMs){
    state='COLETA_ATRASADA';reason='Último candle processado está fora da janela esperada';
+  }else if(gapLocked){
+   state='LACUNA_HISTORICA';reason='Candles perdidos durante a pausa; posição paper em quarentena sem execuções fictícias';
   }else if(position){
    state='OPERANDO';reason='Posição simulada aberta; acompanhando stop e alvo';
   }else{
@@ -51,6 +57,10 @@ export function summarizePaperAgents(paper,{now=Date.now(),staleAfterMs=20*60*10
    reasonCode:decision?.reason||null,lastDecisionAt:iso(decisionTime),
    lastCandleCloseAt:iso(closeTime),ageSeconds:ageMs===null?null:Math.floor(ageMs/1000),
    lastAction:decision?.action||null,positionOpen:Boolean(position),simulated:true,
+   gapLocked,lastGap:gap&&Number.isFinite(gap.missedCandles)?{
+     missedCandles:gap.missedCandles,detectedAt:gap.detectedAt||null,
+     previousCandleCloseAt:iso(safeDate(gap.previousCandleCloseTime)),
+     resumedCandleCloseAt:iso(safeDate(gap.resumedCandleCloseTime))}:null,
    realizedPnl:paper?.agentPnl?.[symbol]?.realizedPnl??null,
    unrealizedPnl:paper?.agentPnl?.[symbol]?.unrealizedPnl??null,
    errorPresent:Boolean(fault||persistedFailure),dataSource:paper?.dataSource||'unavailable'};
@@ -58,7 +68,8 @@ export function summarizePaperAgents(paper,{now=Date.now(),staleAfterMs=20*60*10
  const anyError=results.some(x=>x.state==='ERRO');
  const anyStale=results.some(x=>x.state==='COLETA_ATRASADA');
  const anyMissing=results.some(x=>x.state==='SEM_DADOS');
- const health=anyError?'ERROR':anyStale?'STALE':anyMissing?'INSUFFICIENT_DATA':results.every(x=>['OPERANDO','AGUARDANDO_SINAL'].includes(x.state))?'CURRENT':'PARTIAL';
+ const anyGapLock=results.some(x=>x.gapLocked);
+ const health=anyError?'ERROR':anyStale?'STALE':anyMissing?'INSUFFICIENT_DATA':anyGapLock?'GAP_LOCK':results.every(x=>['OPERANDO','AGUARDANDO_SINAL'].includes(x.state))?'CURRENT':'PARTIAL';
  const latestCandleMs=Math.max(...results.map(x=>safeDate(x.lastCandleCloseAt)??-1));
  return {ok:paper?.ready===true&&!paper?.storageError,mode:'PAPER_ONLY',
   collectionHealth:health,allCurrent:health==='CURRENT',
