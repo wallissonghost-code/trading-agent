@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {summarizeObservedCoverage,COVERAGE_WINDOW_MS,SLOT_MS} from './monitor-coverage.js';
 const NOW=1800000000000;
-const end=Math.floor((NOW-1)/SLOT_MS)*SLOT_MS-1;
+const end=Math.floor(NOW/SLOT_MS)*SLOT_MS-1;
 const make=(symbol,offset=0)=>({symbol,candle_close_time:end-offset*SLOT_MS});
 test('reports candle coverage without calling it service uptime',()=>{
  const x=summarizeObservedCoverage({now:NOW,observations:[make('BTCUSDT'),make('BTCUSDT',1),make('ETHUSDT')]});
