@@ -250,3 +250,20 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 **Estado observado do Supabase:** em `2026-11-24T21:23:18Z`, `trading_paper_states.updated_at=2026-11-24T21:20:03Z`, com `gapLocks={}`, `dataGaps={}` e posição BTCUSDT virtual ainda aberta. Não havia quarentena ativa para avaliar nesse instante. Nunca mutar dados para simular ocorrência de lacuna em produção.
 
 **Limites:** nenhum método automatizado de reconciliação efetiva/desbloqueio foi autorizado ou implementado. Evidências OHLC não revelam a ordem intravela e não podem ser tratadas como fills reais. A implantação do Render free pode dormir, o que requer monitoramento honesto e eventual infraestrutura apropriada para coleta contínua.
+
+
+## 17. Procedimento administrativo sem mutação — 24/11/2026
+
+**Situação observada:** o Render confirmou commit `ef2c632c` como `live`. Supabase às `2026-11-24T21:27:29Z` mostrou `gapLocks={}`, `dataGaps={}` e posição virtual BTCUSDT existente. Nenhuma liquidação/desbloqueio foi feita.
+
+**Código desenvolvido na branch `trading-agent-v2`:**
+- `trading-v2/gap-review-plan.js` (`eb4c3e3`): gera dossiê de revisão administrativa somente leitura para cada ativo, com hash SHA-256 das evidências da posição, lacuna, decisão e análise de candles. Estados: `NO_ACTIVE_CASE`, `EVIDENCE_INCOMPLETE`, `AMBIGUOUS_MANUAL_REVIEW`, `MANUAL_REVIEW_READY`. Mesmo `MANUAL_REVIEW_READY` **não** autoriza destravar ou contabilizar um trade.
+- `trading-v2/gap-review-plan.test.js` (`7379eaf`): testes para hash estável, detecção de mudança do snapshot, incerteza OHLC, ausência de autoridade financeira e não mutação.
+- `trading-v2/server.js` (`8d14cee`): acrescenta `administrativeReview` ao relatório `GET /api/gap-reconciliation`, aproveitando os candles já consultados, sem novo endpoint mutável.
+- `trading-v2/index.html` (`cf89469`): exibe identificação do dossiê e motivo de revisão humana, sem botões de aprovação.
+- Testes HTTP/UI em `5b0d93e`, `1b2efda`, `0b5514e`. O teste UI inicial falhou por expressão de busca incorreta e foi corrigido em `0b5514e`.
+- `trading-v2/README.md` (`60099e3`): documentação do procedimento e pré-requisitos de autorização, controle de concorrência e auditoria para eventual implementação futura.
+
+**Testes verificados:** GitHub Actions run `45491492524` no commit `0b5514e` passou **165/165 testes, 0 falhas e 0 ignorados**, incluindo validação de sintaxe. Link https://github.com/wallissonghost-code/trading-agent/actions/runs/45491492524. Verificar novamente a última publicação no Render, pois `60099e3` é posterior (somente documentação).
+
+**Segurança:** nenhuma opção de aprovação/POST de desbloqueio existe, e nenhuma alteração foi feita nas posições reais ou virtuais do banco. A autorização para projeto/trabalho não é autorização para liquidar uma posição em quarentena com premissas de execução não verificáveis. Uma futura mutação exige autenticação administrativa real, confirmação caso a caso, hash de estado conferido e ledger append-only transacional.
