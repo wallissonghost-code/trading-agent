@@ -67,7 +67,7 @@ test('gap reconciliation UI is informational and never offers unlock operations'
 });
 
 test('administrative audit panel displays evidence IDs without offering unlock',()=>{
- assert.match(html,/administrativeReview\\?\\.cases/);
+ assert.ok(html.includes('administrativeReview?.cases'));
  assert.match(html,/review\.caseId/);
  assert.match(html,/Aprovação administrativa indisponível/);
  assert.match(html,/Nenhuma ordem gerada e nenhuma posição desbloqueada/);
