@@ -69,6 +69,22 @@ A rota administrativa exige o cabeçalho `Authorization: Bearer <token>`, com to
 
 O processo para uma futura resolução operacional exige, em etapa separada, autenticação com privilégio administrativo, confirmação explícita da decisão por caso, comparação com o hash atual do estado persistido, registro append-only da identidade/motivo/data/ações e mecanismo transacional de atualização do ledger e da posição. Essa etapa de mutação **não foi implementada nem habilitada**. Até lá, a posição continua preservada e o motor continua bloqueado quando `gapLocks` estiver ativo. Não executar SQL direto para apagar bloqueios e não inventar preenchimentos retroativos.
 
+## Auditoria administrativa persistente no Supabase
+
+O esquema SQL versionado fica em `sql/admin-audit-schema.sql` e `sql/admin-audit-log-route.sql`, aplicado ao projeto Supabase `trading-agent`. A tabela `public.trading_admin_access_audit` grava somente `portfolio_id`, tipo de evento, rota, resultado de autorização e horário gerado pelo banco. **Não** registra tokens, cabeçalhos de autorização, IP, informações pessoais ou posições financeiras.
+
+- A tabela tem RLS habilitada, acesso anônimo e de usuários autenticados comuns revogado, e `service_role` com apenas `SELECT` e `INSERT`. Gatilhos bloqueiam UPDATE/DELETE/TRUNCATE, inclusive por tentativas de alteração de registros históricos. Administradores privilegiados do banco ainda podem alterar a estrutura: isto é um **registro operacional append-only com resistência à edição**, não armazenamento criptograficamente imutável.
+- Tentativas ao endpoint `GET /api/admin/gap-review` são registradas antes de liberar o dossiê. Com token válido, mas sem confirmação de gravação no Supabase, o endpoint responde 503 (`AUDIT_UNAVAILABLE`), sem mostrar dados administrativos. Acesso com token errado responde 401; sem token configurado retorna 503.
+- `GET /api/admin/audit-log` também exige o token administrativo e gera seu próprio registro antes de listar os eventos mais recentes (máximo de 50). Não existe endpoint de apagar, editar ou desbloquear.
+- A credencial `ADMIN_REVIEW_TOKEN` **não foi configurada no Render** e o acesso restrito permanece fechado. Quando houver decisão explícita de ativação, instalar segredo aleatório forte somente no ambiente de servidor, fora do GitHub e do painel.
+- Retenção, identificação individual de operadores e aprovação de liquidação ainda exigem soluções próprias; não afirmar conformidade regulatória ou trilha inviolável baseada apenas nessa tabela.
+
+## Render — custo para execução sem hibernação
+
+Em 24/11/2026, o primeiro plano pago de Web Service do Render é o **Starter** (ID atual `0.5c-512mb`), **US$ 7/mês** com 0,5 CPU e 512 MB de RAM. O plano `free` pode suspender após 15 minutos sem tráfego HTTP/WebSocket recebido, interrompendo os ciclos de coleta. O Starter não suspende por inatividade; pode reiniciar em atualizações/falhas e não oferece garantia de coleta sem falhas. Os preços são cobrados proporcionalmente ao uso do serviço, com possíveis custos adicionais de consumo/banda e impostos; confirmar no checkout antes de contratar. O plano do workspace é diferente do plano de computação do serviço.
+
+O serviço `trading-agent` **permaneceu em `free`**: nenhum upgrade ou autorização de cobrança foi aplicado. A memória observada em amostras recentes do Render ficou abaixo de 170 MB, portanto 512 MB parece um ponto inicial razoável, sujeito à validação de carga contínua. Fontes: https://render.com/pricing e https://render.com/docs/free e https://render.com/docs/compute-plans.
+
 ## Testes
 
 `npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-agent-v2.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
