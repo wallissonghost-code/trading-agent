@@ -17,6 +17,48 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
  }
  return {
   kind:'supabase',
+  async getFrozenForwardStudy(version='filters-v1-20261124'){
+   const path=new URL('/rest/v1/trading_forward_studies',origin);
+   path.searchParams.set('version','eq.'+version);
+   path.searchParams.set('select','version,started_at,configs,horizon_minutes,fees_bps,slippage_bps');
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows)||rows.length!==1)throw Error('Frozen forward study unavailable');
+   return rows[0];
+  },
+  async insertForwardObservation(record){
+   if(!record||!['BTCUSDT','ETHUSDT','SOLUSDT'].includes(record.symbol)||
+     record.version!=='filters-v1-20261124'||!Number.isSafeInteger(record.candleCloseTime)||
+     !Number.isSafeInteger(record.candleOpenTime))throw Error('Invalid prospective observation');
+   const path=new URL('/rest/v1/trading_forward_candles',origin);
+   const row={portfolio_id:id,version:record.version,symbol:record.symbol,
+    candle_open_time:record.candleOpenTime,candle_close_time:record.candleCloseTime,
+    candle_open:record.candleOpen,candle_close:record.candleClose,signals:record.signals};
+   const saved=await request('POST',path,row,{ignoreDuplicates:true});
+   if(!Array.isArray(saved))throw Error('Prospective observation not acknowledged');
+   return saved.length>0;
+  },
+  async listForwardObservations({limit=180}={}){
+   const path=new URL('/rest/v1/trading_forward_candles',origin);
+   path.searchParams.set('portfolio_id','eq.'+id);
+   path.searchParams.set('version','eq.filters-v1-20261124');
+   path.searchParams.set('select','symbol,candle_close_time,observed_at,signals');
+   path.searchParams.set('order','observed_at.desc');
+   path.searchParams.set('limit',String(Math.max(1,Math.min(720,Number(limit)||180))));
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows))throw Error('Invalid prospective observation list');
+   return rows;
+  },
+  async listForwardOutcomes({limit=300}={}){
+   const path=new URL('/rest/v1/trading_forward_outcomes',origin);
+   path.searchParams.set('portfolio_id','eq.'+id);
+   path.searchParams.set('version','eq.filters-v1-20261124');
+   path.searchParams.set('select','symbol,scenario,signal_candle_close_time,observed_at,gross_return_pct,modeled_net_return_pct,evaluated_at');
+   path.searchParams.set('order','evaluated_at.desc');
+   path.searchParams.set('limit',String(Math.max(1,Math.min(1000,Number(limit)||300))));
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows))throw Error('Invalid prospective outcomes');
+   return rows;
+  },
   async saveResearchReport(report){
    if(!report||!['BTCUSDT','ETHUSDT','SOLUSDT'].includes(report.symbol)||!report.from||!report.to)throw Error('Invalid research report');
    const base=new URL('/rest/v1/trading_research_reports',origin);
