@@ -40,6 +40,16 @@ A aplicação depende de um processo Node persistente para ciclos periódicos; u
 
 O status de um **outro projeto** no Vercel não comprova deploy deste servidor. Verifique a URL real do Render e os endpoints `/health`, `/api/paper` e `/api/agent-diagnostics` antes de declarar publicação bem-sucedida.
 
+## Continuidade de candles e lacunas (5 minutos)
+
+O papel de `trading-v2/paper.js` é **não inventar execuções enquanto o Render estiver suspenso**. O motor compara o último candle fechado persistido de cada ativo com o candle recebido e grava `dataGaps[symbol]` com `missedCandles`, horários e a indicação de posição pendente. Esses dados fazem parte do mesmo snapshot persistente no Supabase (ou no arquivo local).
+
+- **Sem posição virtual aberta:** a primeira vela após uma lacuna recebe decisão `WAIT / DATA_GAP_RESUMED`, não gera ordem simulada e a observação normal pode continuar nas velas seguintes.
+- **Com posição virtual aberta:** a posição é preservada e marcada `gapLocks[symbol]=true`, com decisão `WAIT / DATA_GAP_POSITION_LOCK`. O bloqueio sobrevive a reinícios. Não se executam saídas ou novas entradas fictícias nessa posição, pois stops/targets podem ter ocorrido durante o intervalo não observado.
+- O painel expõe `LACUNA_HISTORICA` e o último incidente sem reinterpretar candles passados como transações.
+- **Reconciliação:** neste estágio não há botão automático para desbloquear. Uma posição com `gapLocks` exige revisão específica do histórico e uma política segura de retomada antes de qualquer mutação; não apagar a trava manualmente em produção sem avaliar a posição preservada. O histórico existente continua intacto.
+- Essa proteção **não substitui coleta 24/7** e não reconstitui ordens perdidas. O motor continua restrito a paper trading, com execução financeira real desativada.
+
 ## Testes
 
 `npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-agent-v2.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
