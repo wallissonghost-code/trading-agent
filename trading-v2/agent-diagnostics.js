@@ -13,6 +13,7 @@ const reasonLabels={
  POSITION_OPEN:'Posição simulada aberta; acompanhando stop e alvo',
  PORTFOLIO_DRAWDOWN_LOCK:'Limite de perda da carteira bloqueia novas entradas',
  CAPITAL_OR_RISK_LIMIT:'Capital ou limite de risco impede a entrada',
+ PORTFOLIO_EXPOSURE_LIMIT:'Carteira atingiu o limite de exposição de 50%; aguardando espaço',
  MAX_OPEN_POSITIONS:'Quantidade máxima de posições abertas',
  EMA_RSI_WATCH_LONG:'Entrada simulada registrada',
  STOP_LOSS:'Stop de simulação executado',
