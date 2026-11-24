@@ -128,3 +128,24 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 - Consulta à API Vercel para listar deploys foi negada com HTTP 403. Não afirmar confirmação da versão em produção com base somente no status anterior.
 - Render exigiu seleção explícita de workspace e, portanto, **não foram inspecionados serviços nem logs**.
 - **Próxima ação**: consultar resultado do workflow novo, investigar falhas se existirem; verificar URL oficial do deploy e estado em tempo real de `/api/agent-diagnostics`, principalmente NOVA; auditar persistência e coleta do Render após seleção do workspace pelo usuário.
+
+
+## 11. Consolidação de auditoria — 24/11/2026
+
+**Alterações concretas desta etapa**
+- `3248b09`: frontend mantém a carteira paper visível quando a resposta JSON do diagnóstico falha; acrescenta horário do último candle a cada cartão.
+- `37b5a1a` e `918a7a7`: README do Trading Agent V2 reescrito para identificar fontes sintéticas, dados públicos Binance, motor paper e requisitos de persistência/hospedagem; link do workflow consolidado.
+- `e3328db`: adiciona teste HTTP de integração exercitando `/health`, `/api/agent-diagnostics`, `/api/status` e `/api/paper`, sem autorizar execução financeira real.
+- `9afbb4f`: remove workflow duplicado e mantém o anterior `.github/workflows/trading-agent-v2.yml`, que já executa validação de sintaxe e `npm test`.
+- `918a7a7`: documentação aponta novamente para o workflow vigente.
+
+**Testes realmente confirmados**: GitHub Actions, run ID `45426839352`, commit `e3328dbb1d7bd081f2b6f8d684c0550a6a5deece`: **136 testes, 136 aprovados, 0 falhas, 0 ignorados**. Workflow também aprovou validação de sintaxe. Link: https://github.com/wallissonghost-code/trading-agent/actions/runs/45426839352 . Isto confirma comportamento no CI para aquele commit, não estado de deploy.
+
+**Hospedagem / limitações verificadas**
+- Uma busca do Vercel por associação ao repositório `wallissonghost-code/trading-agent` informou **não haver projeto vinculado**. Os checks do GitHub chamados Vercel redirecionam a um projeto de nome **`fut-live-panel`**, que não deve ser usado como prova de deploy do Trading Agent.
+- A integração Render retornou um workspace acessível denominado `My Workspace`, mas exige confirmação explícita do usuário para selecioná-lo antes da consulta de serviços/logs. Não houve acesso aos serviços nesta etapa.
+- **Não confirmado**: aplicação de trading online, URL pública atual, comportamento dos robôs ao vivo, execução 24/7 ou persistência no Render.
+
+**Status de entrega**: código do diagnóstico integrado, documentação e testes no CI aprovados; **validação de produção ainda pendente**, especialmente serviço Render e diagnóstico em tempo real do NOVA. Não chamar o produto de “100% pronto em produção” sem essas evidências.
+
+**Próxima ação obrigatória**: após o usuário confirmar o workspace Render correto, consultar serviço, deploys e logs; testar `/health`, `/api/paper` e `/api/agent-diagnostics` na URL real; validar armazenamento e coletor. Somente depois declarar deploy operacional.
