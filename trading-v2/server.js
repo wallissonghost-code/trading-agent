@@ -301,8 +301,11 @@ async function getShadowTradeReport(){
    verifyShadowStudy(frozen);
    shadowConfig=frozen;
   }
-  const trades=await paperStore.listShadowTrades({limit:500});
-  return summarizeShadowTrades({study:shadowConfig,trades});
+  const [trades,observations]=await Promise.all([
+   paperStore.listShadowTrades({limit:500}),
+   paperStore.listShadowObservations({limit:360})
+  ]);
+  return summarizeShadowTrades({study:shadowConfig,trades,observations});
  }catch(error){
   console.error('Prospective full trades read error:',String(error.message||error).slice(0,140));
   return {ok:false,mode:'FROZEN_PROSPECTIVE_SHADOW_TRADES',
