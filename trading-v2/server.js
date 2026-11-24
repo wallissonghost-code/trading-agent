@@ -5,6 +5,7 @@ import { createPaperRunner } from './paper.js';
 import { summarizePaperAgents } from './agent-diagnostics.js';
 import { summarizeGapReconciliation } from './gap-reconciliation.js';
 import { buildGapReviewPlan } from './gap-review-plan.js';
+import { authorizeReviewRequest } from './admin-access.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { performance } from './performance.js';
 import { summarizeSignalOutcomes } from './signal-evaluation.js';
@@ -529,8 +530,21 @@ else if(path==='/api/agents')data={ok:true,simulated:true,agents};
 else if(path==='/api/market')data={ok:true,dataSource:'synthetic',prices};
 else if(path==='/api/paper')data={ok:paperInitError===null, ...paper.status(),error:paperInitError};
 else if(path==='/api/agent-diagnostics')data=summarizePaperAgents({...paper.status(),ready:paperInitError===null&&paper.status().ready});
-else if(path==='/api/gap-reconciliation'){
- // Only fetch public OHLC for locked virtual positions. This GET cannot mutate paper state.
+else if(path==='/api/gap-reconciliation'||path==='/api/admin/gap-review'){
+ const restricted=path==='/api/admin/gap-review';
+ if(restricted){
+  const access=authorizeReviewRequest(req.headers.authorization);
+  if(!access.authorized){
+   const status=access.reason==='NOT_CONFIGURED'?503:401;
+   res.writeHead(status,{'content-type':'application/json; charset=utf-8',
+    'cache-control':'no-store','x-content-type-options':'nosniff',
+    'referrer-policy':'no-referrer'});
+   return res.end(req.method==='HEAD'?undefined:JSON.stringify({
+    ok:false,code:access.reason,message:'Revisão administrativa restrita; acesso indisponível'}));
+  }
+ }
+ // Public audit is read-only; detailed administrative dossiers require server-side authorization.
+ // Only fetch public OHLC for locked virtual positions; neither route mutates paper state.
  const state=paper.status(),marketBySymbol={},errorsBySymbol={};
  const locked=SYMBOLS.filter(symbol=>state.gapLocks?.[symbol]===true);
  await Promise.all(locked.map(async symbol=>{
@@ -543,7 +557,7 @@ else if(path==='/api/gap-reconciliation'){
   }
  }));
  const audit=summarizeGapReconciliation(state,{marketBySymbol,errorsBySymbol});
- data={...audit,administrativeReview:buildGapReviewPlan(audit,state)};
+ data=restricted?{...audit,administrativeReview:buildGapReviewPlan(audit,state)}:audit;
 }
 
 else if(path==='/api/performance'){
