@@ -3,6 +3,7 @@ import { analyze, generateMockCandles } from './engine.js';
 import { SYMBOLS, getKlines } from './market.js';
 import { createPaperRunner } from './paper.js';
 import { summarizePaperAgents } from './agent-diagnostics.js';
+import { summarizeGapReconciliation } from './gap-reconciliation.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { performance } from './performance.js';
 import { summarizeSignalOutcomes } from './signal-evaluation.js';
@@ -527,6 +528,22 @@ else if(path==='/api/agents')data={ok:true,simulated:true,agents};
 else if(path==='/api/market')data={ok:true,dataSource:'synthetic',prices};
 else if(path==='/api/paper')data={ok:paperInitError===null, ...paper.status(),error:paperInitError};
 else if(path==='/api/agent-diagnostics')data=summarizePaperAgents({...paper.status(),ready:paperInitError===null&&paper.status().ready});
+else if(path==='/api/gap-reconciliation'){
+ // Only fetch public OHLC for locked virtual positions. This GET cannot mutate paper state.
+ const state=paper.status(),marketBySymbol={},errorsBySymbol={};
+ const locked=SYMBOLS.filter(symbol=>state.gapLocks?.[symbol]===true);
+ await Promise.all(locked.map(async symbol=>{
+  try{
+   const result=await getKlines(symbol,{limit:1000});
+   marketBySymbol[symbol]=result.candles;
+  }catch(error){
+   errorsBySymbol[symbol]=true;
+   console.warn('Gap audit feed unavailable:',symbol,String(error.message||error).slice(0,80));
+  }
+ }));
+ data=summarizeGapReconciliation(state,{marketBySymbol,errorsBySymbol});
+}
+
 else if(path==='/api/performance'){
   try{
     const recent=paperStore?.listTrades?await paperStore.listTrades({limit:100}):paper.status().trades||[];
