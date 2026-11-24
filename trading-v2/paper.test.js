@@ -91,3 +91,45 @@ test('journals every processed candle including a WAIT decision without replay',
  assert.equal(processCandle(a,'BTCUSDT',cs).processed,false);
  assert.deepEqual(a.lastDecision,original);
 });
+
+test('each paper robot retains its own causal latest decision without overwriting other robots',()=>{
+ const a=createAccount();
+ const cs=candles();
+ for(const symbol of ['BTCUSDT','ETHUSDT','SOLUSDT']){
+  assert.equal(processCandle(a,symbol,cs).processed,true);
+  assert.equal(a.lastDecisions[symbol].symbol,symbol);
+  assert.equal(a.lastDecisions[symbol].candleCloseTime,cs.at(-1).closeTime);
+  assert.equal(a.lastDecisions[symbol].entryGates.paperOnly,true);
+ }
+ const paper=snapshot(a);
+ assert.deepEqual(Object.keys(paper.lastDecisions).sort(),['BTCUSDT','ETHUSDT','SOLUSDT']);
+ assert.equal(paper.lastDecision.symbol,'SOLUSDT');
+ assert.equal(paper.executionEnabled,false);
+ const saved=structuredClone(a.lastDecisions.ETHUSDT);
+ processCandle(a,'ETHUSDT',cs);
+ assert.deepEqual(a.lastDecisions.ETHUSDT,saved);
+});
+test('existing portfolios without per-symbol decisions migrate in memory, preserving cash and trades',()=>{
+ const a=createAccount();
+ delete a.lastDecisions;
+ a.cash=9800;a.trades=[{symbol:'BTCUSDT',side:'BUY',simulated:true}];
+ const before=structuredClone(a.trades);
+ const report=snapshot(a);
+ assert.deepEqual(report.lastDecisions,{});
+ assert.equal(report.cash,9800);
+ assert.deepEqual(report.trades,before);
+ processCandle(a,'ETHUSDT',candles());
+ assert.equal(a.lastDecisions.ETHUSDT.symbol,'ETHUSDT');
+ assert.deepEqual(a.trades.filter(x=>x.symbol==='BTCUSDT'),before);
+});
+test('paper decision reports risk and trend gates without changing the existing trade path',()=>{
+ const a=createAccount();
+ const cs=candles();
+ processCandle(a,'ETHUSDT',cs);
+ const d=a.lastDecisions.ETHUSDT;
+ assert.equal(typeof d.entryGates.emaBullish,'boolean');
+ assert.equal(typeof d.entryGates.rsiInBuyRange,'boolean');
+ assert.equal(typeof d.entryGates.positionSlotsAvailable,'boolean');
+ assert.ok(['EMA_TREND_NOT_BULLISH','RSI_OUTSIDE_BUY_RANGE','MAX_OPEN_POSITIONS','CAPITAL_OR_RISK_LIMIT','EMA_RSI_WATCH_LONG','NO_NEW_ENTRY'].includes(d.reason));
+ assert.equal(d.simulated,true);
+});
