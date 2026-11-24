@@ -170,3 +170,11 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 **Limitações dos métodos:** acesso HTTP direto aos endpoints públicos falhou no ambiente de consulta (ferramenta web sem acesso ao endereço e execução local sem DNS); a verificação equivalente contou com status real do Render, logs de inicialização, CI e consultas SQL de dados persistidos. Não declarar resultado de requisição HTTP externa que não foi obtido. API HTTP é exercitada em testes automatizados.
 
 **Próximas verificações:** conferir status final dos deploys `4f683654` e `9eaba4d` e sucesso do CI correspondente; checar se os candles retornaram após novo deploy; antes de qualquer afirmação 24/7, decidir infraestrutura apropriada com consentimento explícito sobre eventuais custos. Priorizar resolução de falhas comprovadas, sem forçar operações ou alterar risco.
+
+
+### Retomada da coleta após a correção
+- Render confirmou o deploy `4f683654` como **live** em `2026-11-24T16:40:54Z`; o CI do mesmo commit concluiu com sucesso.
+- Consulta SQL em `2026-11-24T16:41:18Z`: `trading_paper_states.updated_at = 2026-11-24T16:40:55.528Z`, **0,4 minuto** antes da consulta. O registro persistente voltou a avançar após o novo deploy.
+- O commit `9eaba4d` com documentação também foi publicado como **live** em `2026-11-24T16:41:25Z` e seu workflow CI terminou com sucesso.
+- A última atualização exclusivamente documental não muda decisões, risco ou estratégias. Sua publicação pode estar em andamento durante a gravação deste registro.
+- Observação: o progresso após o deploy confirma uma retomada pontual, **não 24/7**. O plano Render free pode suspender o processo novamente após inatividade.
