@@ -14,7 +14,7 @@ test('HTTP diagnostics remains read-only, per-agent and separately identifiable 
  const child=spawn(process.execPath,['server.js'],{
   cwd:root,
   env:{...process.env,PORT:String(port),PAPER_STATE_PATH:join(dir,'paper.json'),
-   SUPABASE_URL:'',SUPABASE_SECRET_KEY:'',SUPABASE_SERVICE_ROLE_KEY:''},
+   SUPABASE_URL:'',SUPABASE_SECRET_KEY:'',SUPABASE_SERVICE_ROLE_KEY:'',ADMIN_REVIEW_TOKEN:''},
   stdio:'ignore'
  });
  try{
@@ -49,11 +49,12 @@ test('HTTP diagnostics remains read-only, per-agent and separately identifiable 
   assert.equal(g.lockedCount,0);
   assert.equal(g.automaticUnlockEnabled,false);
   assert.equal(g.automaticFillsEnabled,false);
-  assert.equal(g.administrativeReview.mode,'PAPER_ONLY');
-  assert.equal(g.administrativeReview.manualMutationsEnabled,false);
-  assert.equal(g.administrativeReview.lockedCount,0);
-  assert.equal(g.administrativeReview.cases.length,3);
-  assert.ok(g.administrativeReview.cases.every(c=>c.state==='NO_ACTIVE_CASE'&&c.canUnlock===false));
+  assert.equal(Object.hasOwn(g,'administrativeReview'),false);
+  const adminResponse=await fetch(url+'/api/admin/gap-review');
+  assert.equal(adminResponse.status,503);
+  const adminUnavailable=await adminResponse.json();
+  assert.equal(adminUnavailable.code,'NOT_CONFIGURED');
+  assert.equal((await fetch(url+'/api/admin/gap-review',{method:'POST'})).status,405);
   assert.deepEqual(g.symbols.map(x=>x.status),['NO_QUARANTINE','NO_QUARANTINE','NO_QUARANTINE']);
  }finally{
   child.kill('SIGTERM');
