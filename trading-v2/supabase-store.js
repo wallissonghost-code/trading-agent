@@ -20,7 +20,7 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
   async getFrozenShadowStudy(version='shadow-v1-20261124'){
    const path=new URL('/rest/v1/trading_shadow_studies',origin);
    path.searchParams.set('version','eq.'+version);
-   path.searchParams.set('select','version,started_at,configs,fee_bps,slippage_bps,risk_budget_pct,max_exposure_pct,atr_multiplier,target_r_multiple,max_holding_bars');
+   path.searchParams.set('select','version,started_at,configs,fee_bps,slippage_bps,risk_budget_pct,max_exposure_pct,atr_multiplier,target_r_multiple,max_holding_bars,cooldown_bars');
    const rows=await request('GET',path);
    if(!Array.isArray(rows)||rows.length!==1)throw Error('Frozen shadow study unavailable');
    return rows[0];
