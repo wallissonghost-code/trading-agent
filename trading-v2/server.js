@@ -13,6 +13,7 @@ import { compareCooldowns } from './cooldown-research.js';
 import { compareEntryFilters } from './entry-filter-research.js';
 import { buildForwardObservation, summarizeForwardStudy, verifyFrozenForwardConfig, buildShadowObservation, verifyShadowStudy, summarizeShadowTrades } from './forward-study.js';
 import { summarizeMonitoring } from './monitor-health.js';
+import { summarizeObservedCoverage } from './monitor-coverage.js';
 import { auditWalkForwardReports } from './research-audit.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
 import { evaluateHeadlineImpact, summarizeHeadlineImpacts } from './news-impact.js';
@@ -310,6 +311,24 @@ async function syncMonitoringIncidents(){
   return {ok:false,error:'Monitor incidents write unavailable'};
  }finally{monitoringSyncPromise=null;}
 }
+async function getMonitoringCoverage(){
+ if(!paperStore?.listShadowObservations||!paperStore?.listMonitoringEvents||!paperStore?.listMonitoringStates)
+  return {ok:false,mode:'OBSERVED_CANDLE_COVERAGE',error:'Resumo de coleta não configurado'};
+ try{
+  const [observations,events,states]=await Promise.all([
+   paperStore.listShadowObservations({limit:360}),
+   paperStore.listMonitoringEvents({limit:100}),
+   paperStore.listMonitoringStates()
+  ]);
+  return summarizeObservedCoverage({observations,events,states,now:Date.now(),
+   partial:observations.length===360});
+ }catch(error){
+  console.error('Observed coverage report unavailable:',String(error.message||error).slice(0,130));
+  return {ok:false,mode:'OBSERVED_CANDLE_COVERAGE',
+   error:'Resumo de disponibilidade observada temporariamente indisponível',
+   orderExecutionEnabled:false};
+ }
+}
 async function getMonitoringAlerts(){
  if(!paperStore?.listMonitoringEvents||!paperStore?.listMonitoringStates)
   return {ok:false,error:'Histórico de incidentes não configurado',mode:'READ_ONLY_RESEARCH_ALERTS'};
@@ -391,6 +410,7 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
+else if(path==='/api/monitor-coverage')data=await getMonitoringCoverage();
 else if(path==='/api/monitor-alerts')data=await getMonitoringAlerts();
 else if(path==='/api/monitor-health')data=await getMonitoringHealth();
 else if(path==='/api/shadow-trades')data=await getShadowTradeReport();
