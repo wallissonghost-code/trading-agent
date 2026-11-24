@@ -49,6 +49,11 @@ test('HTTP diagnostics remains read-only, per-agent and separately identifiable 
   assert.equal(g.lockedCount,0);
   assert.equal(g.automaticUnlockEnabled,false);
   assert.equal(g.automaticFillsEnabled,false);
+  assert.equal(g.administrativeReview.mode,'PAPER_ONLY');
+  assert.equal(g.administrativeReview.manualMutationsEnabled,false);
+  assert.equal(g.administrativeReview.lockedCount,0);
+  assert.equal(g.administrativeReview.cases.length,3);
+  assert.ok(g.administrativeReview.cases.every(c=>c.state==='NO_ACTIVE_CASE'&&c.canUnlock===false));
   assert.deepEqual(g.symbols.map(x=>x.status),['NO_QUARANTINE','NO_QUARANTINE','NO_QUARANTINE']);
  }finally{
   child.kill('SIGTERM');
