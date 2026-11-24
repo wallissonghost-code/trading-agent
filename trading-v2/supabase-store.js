@@ -17,6 +17,50 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
  }
  return {
   kind:'supabase',
+  async saveResearchReport(report){
+   if(!report||!['BTCUSDT','ETHUSDT','SOLUSDT'].includes(report.symbol)||!report.from||!report.to)throw Error('Invalid research report');
+   const base=new URL('/rest/v1/trading_research_reports',origin);
+   const rows=await request('POST',base,{portfolio_id:id,symbol:report.symbol,study_kind:'WALK_FORWARD_28D_V1',
+    period_start:report.from,period_end:report.to,completed_at:new Date().toISOString(),report});
+   if(!Array.isArray(rows)||rows.length!==1)throw Error('Research report save was not acknowledged');
+   return rows[0];
+  },
+  async listResearchReports({limit=3}={}){
+   const query=new URL('/rest/v1/trading_research_reports',origin);
+   query.searchParams.set('portfolio_id','eq.'+id);
+   query.searchParams.set('study_kind','eq.WALK_FORWARD_28D_V1');
+   query.searchParams.set('select','report,completed_at');
+   query.searchParams.set('order','completed_at.desc');
+   query.searchParams.set('limit',String(Math.max(1,Math.min(15,Number(limit)||3))));
+   const rows=await request('GET',query);
+   if(!Array.isArray(rows))throw Error('Invalid research history response');
+   return rows;
+  },
+  async saveNews(items){
+   if(!Array.isArray(items)||items.length>45)throw Error('Invalid news batch');
+   if(items.length===0)return [];
+   const base=new URL('/rest/v1/trading_research_news',origin);
+   const records=items.map(item=>({
+    portfolio_id:id,source:item.source,url:item.url,title:item.title,published_at:item.publishedAt,
+    fetched_at:item.fetchedAt,related_symbols:item.relatedSymbols,context_category:item.category
+   }));
+   const rows=await request('POST',base,records);
+   if(!Array.isArray(rows))throw Error('News archive write not acknowledged');
+   return rows;
+  },
+  async listNews({limit=25}={}){
+   const query=new URL('/rest/v1/trading_research_news',origin);
+   query.searchParams.set('portfolio_id','eq.'+id);
+   query.searchParams.set('select','source,url,title,published_at,fetched_at,related_symbols,context_category');
+   query.searchParams.set('order','published_at.desc');
+   query.searchParams.set('limit',String(Math.max(1,Math.min(50,Number(limit)||25))));
+   const rows=await request('GET',query);
+   if(!Array.isArray(rows))throw Error('Invalid news archive response');
+   return rows.map(row=>({
+    source:row.source,url:row.url,title:row.title,publishedAt:row.published_at,
+    fetchedAt:row.fetched_at,relatedSymbols:row.related_symbols,category:row.context_category
+   }));
+  },
   async listSignalOutcomes({limit=100}={}){
    const query=new URL('/rest/v1/trading_paper_signal_outcomes',origin);
    query.searchParams.set('portfolio_id','eq.'+id);
