@@ -239,6 +239,18 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 <section class="panel" style="margin-top:18px" aria-label="Avaliação de sinais dos agentes"><div class="between" style="flex-wrap:wrap;margin-bottom:12px"><div><div class="eyebrow">INTELIGÊNCIA OBSERVACIONAL / CANDLES DE 5 MIN</div><h2 style="margin:6px 0">Os sinais estavam corretos?</h2></div><button id="refreshSignals" type="button">Atualizar avaliação</button></div><p class="muted" style="font-size:12px">Compara a direção sugerida pelos indicadores com o fechamento do candle seguinte, quando ambos foram registrados. Não é taxa de acerto de operações nem previsão do mercado.</p><div class="performance-grid" id="signalMetrics"><div class="metric"><span>SINAIS AVALIADOS</span><strong>—</strong></div><div class="metric"><span>ACERTO DIRECIONAL</span><strong>—</strong></div><div class="metric"><span>SINAIS DE ESPERA</span><strong>—</strong></div><div class="metric"><span>AMOSTRA</span><strong>—</strong></div></div><div class="agent-metrics" id="signalAgentResults"></div><p class="performance-note" id="signalEvaluationNote">Aguardando dados do Supabase.</p></section>
 </div>
 <div id="view-estrategias" class="workspace-view" role="tabpanel" aria-labelledby="tab-estrategias" tabindex="0" data-view="estrategias" hidden><div class="workspace-view-intro"><span class="eyebrow">CENTRAL DE COMANDO / ESTRATÉGIAS</span><p>Laboratórios e testes históricos</p></div>
+<div class="panel future-study-panel" aria-label="Operações completas experimentais" style="margin-bottom:15px">
+ <div class="between" style="flex-wrap:wrap;margin-bottom:12px">
+  <div><div class="eyebrow">OPERAÇÕES FUTURAS / SOMENTE PESQUISA</div><h2 style="margin:5px 0">Operações virtuais completas</h2></div>
+  <button type="button" id="refreshShadowTrades">Consultar operações</button>
+ </div>
+ <p class="muted" style="font-size:12px">Posições teóricas com entrada após o registro do sinal, stop baseado no ATR, alvo de 2 vezes a distância do stop, custos e limite de 24 candles. Uma lacuna no histórico invalida a posição em vez de inventar lucro.</p>
+ <p class="history-totals" id="shadowTradeStatus" aria-live="polite">Consultando o registro de operações...</p>
+ <div class="future-study-stats" id="shadowTradeStats"></div>
+ <div id="shadowTradeMarkets"></div>
+ <details class="future-study-details"><summary>Últimas operações experimentais</summary><div id="shadowTradeHistory"><p class="muted">Aguardando novas operações.</p></div></details>
+ <p class="performance-note">Cada estratégia utiliza uma referência virtual fixa de US$ 10.000, sem capitalização. Preços executados, stops e custos são hipóteses de simulação, não preenchimentos reais. Nenhum sinal é enviado à corretora.</p>
+</div>
 <div class="panel future-study-panel" aria-label="Validação prospectiva de estratégias" style="margin-bottom:15px">
  <div class="between" style="flex-wrap:wrap;margin-bottom:12px">
   <div><div class="eyebrow">ESTUDO CONGELADO / FORA DO HISTÓRICO ORIGINAL</div><h2 style="margin:5px 0">Validação futura dos filtros</h2></div>
@@ -379,6 +391,39 @@ async function refreshTradeHistory(){
 
 let forwardStudyTimer=null;
 let impactRefreshTimeout=null;
+async function refreshShadowTrades(){
+ const status=$('shadowTradeStatus'),stats=$('shadowTradeStats'),markets=$('shadowTradeMarkets'),history=$('shadowTradeHistory'),button=$('refreshShadowTrades');
+ button.disabled=true;
+ try{
+  const response=await fetch('/api/shadow-trades',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const data=await response.json();
+  if(!data.ok)throw Error(data.error||'Operações de estudo não disponíveis');
+  const name={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const scenarios={reference:'Seletiva',trend_confirmed:'Tendência',volatility_screen:'Volatilidade ATR',combined:'Filtro combinado'};
+  const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'USD'});
+  const pct=n=>n===null?'—':Number(n).toLocaleString('pt-BR',{maximumFractionDigits:3})+'%';
+  status.textContent='Parâmetros congelados • Início: '+new Date(data.startedAt).toLocaleString('pt-BR')+' • Nenhuma estratégia aprovada';
+  stats.innerHTML=[['ABERTAS',data.open],['ENCERRADAS',data.closed],['INVALIDADAS POR LACUNAS',data.invalidated]].map(([key,val])=>
+   '<div><span>'+key+'</span><strong>'+Number(val||0)+'</strong></div>').join('');
+  markets.innerHTML=Object.entries(data.bySymbol||{}).map(([symbol,market])=>
+   '<details class="future-study-details"><summary>'+esc(name[symbol]||symbol)+' • '+market.trades+' registros de operações</summary>'+
+   Object.entries(market.scenarios||{}).map(([key,r])=>
+     '<div class="future-study-variant"><div><strong>'+esc(scenarios[key]||key)+'</strong><small>'+r.closed+' encerradas · '+r.open+' abertas · '+r.invalidated+' invalidadas</small></div>'+
+     '<div><small>P&L virtual realizado</small><strong class="'+(r.totalRealizedPnlUsd>=0?'positive':'negative')+'">'+money(r.totalRealizedPnlUsd)+'</strong></div>'+
+     '<div><small>Retorno médio sobre entrada</small><strong>'+pct(r.averageNetReturnPct)+'</strong></div></div>'
+   ).join('')+'</details>'
+  ).join('');
+  const reasons={STOP:'Stop',TARGET:'Alvo',TIME_LIMIT:'Prazo máximo',DATA_GAP:'Histórico incompleto'};
+  history.innerHTML=(data.recentTrades||[]).length?data.recentTrades.map(t=>
+   '<div class="ledger-row"><div><strong>'+esc(name[t.symbol]||t.symbol)+'</strong><small>'+esc(scenarios[t.scenario]||t.scenario)+'</small></div>'+
+   '<div><span class="history-pill">'+esc(t.status==='OPEN'?'ABERTA':t.status==='CLOSED'?'ENCERRADA':'INVALIDADA')+'</span><small>'+esc(reasons[t.exitReason]||'Monitorando')+'</small></div>'+
+   '<div><strong>'+money(t.entryFill)+'</strong><small>Stop '+money(t.stopPrice)+' · Alvo '+money(t.targetPrice)+'</small></div>'+
+   '<div><strong class="'+(t.netPnlUsd!==null&&t.netPnlUsd>=0?'positive':'negative')+'">'+(t.netPnlUsd===null?'—':money(t.netPnlUsd))+'</strong><small>'+(t.exitFill===null?'Sem saída registrada':'Saída '+money(t.exitFill))+'</small></div></div>'
+  ).join(''):'<p class="muted">Ainda não houve sinal elegível para abrir operações experimentais.</p>';
+ }catch(error){status.textContent='Falha no registro experimental: '+error.message;stats.innerHTML='';markets.innerHTML='';history.innerHTML='';}
+ finally{button.disabled=false;}
+}
 async function refreshForwardStudy(){
  const status=$('forwardStudyStatus'),stats=$('forwardStudyStats'),root=$('forwardStudyResults'),button=$('refreshForwardStudy');
  button.disabled=true;
@@ -719,6 +764,7 @@ $('refreshLossDiagnostics').addEventListener('click',refreshLossDiagnostics);
 $('refreshCooldownResearch').addEventListener('click',refreshCooldownResearch);
 $('refreshEntryFilters').addEventListener('click',refreshEntryFilters);
 $('refreshForwardStudy').addEventListener('click',refreshForwardStudy);
+$('refreshShadowTrades').addEventListener('click',refreshShadowTrades);
 // Hash-addressable tabs preserve mobile navigation and back/forward without extra page loads.
 const WORKSPACES=['painel','operacoes','estrategias','noticias','auditoria'];
 let activeWorkspace=null;
@@ -742,6 +788,7 @@ function openWorkspace(key,{scroll=true}={}){
   if(selected==='painel')void sync();
   if(selected==='operacoes')void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
   if(selected==='estrategias'){
+   void refreshShadowTrades();
    void refreshForwardStudy();
    void refreshStrategyLab();
    void refreshWalkForward();
@@ -753,6 +800,7 @@ function openWorkspace(key,{scroll=true}={}){
  }else if(selected==='operacoes'){
   void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
  }else if(selected==='estrategias'){
+  void refreshShadowTrades();
   void refreshForwardStudy();
  }
 }
@@ -776,7 +824,7 @@ for(const tab of document.querySelectorAll('.workspace-tab')){
 window.addEventListener('hashchange',()=>openWorkspace(decodeURIComponent(location.hash.slice(1))));
 renderRobots(null);
 openWorkspace(decodeURIComponent(location.hash.slice(1)),{scroll:false});
-setInterval(()=>{if(activeWorkspace==='estrategias')void refreshForwardStudy();},120000);
+setInterval(()=>{if(activeWorkspace==='estrategias'){void refreshForwardStudy();void refreshShadowTrades();}},120000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshPaper();},15000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshRealMarket();},60000);
 setInterval(()=>{if(activeWorkspace==='operacoes'){
