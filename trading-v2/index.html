@@ -253,6 +253,16 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
  <div class="monitor-timeline-legend"><span><i class="timeline-full"></i>12/12 candles</span><span><i class="timeline-partial"></i>1–11 candles</span><span><i class="timeline-unknown"></i>Sem registro</span><span><i class="timeline-incident"></i>Alerta detectado</span></div>
  <p class="muted" style="font-size:11px">“Sem registro” não significa necessariamente servidor offline. Os horários de incidentes são horários de detecção, não o começo comprovado de uma falha.</p>
 </details>
+<details class="monitor-alerts-details" id="paperEvidencePanel">
+ <summary><strong>Qualidade do teste dos robôs • PAPER</strong><span class="muted" id="paperEvidenceSummary"> • Conferir evidências</span></summary>
+ <div class="between" style="margin:12px 0 8px;gap:8px;flex-wrap:wrap">
+  <p class="muted" style="font-size:12px;margin:0">O histórico independente da pesquisa não comprova que uma ordem paper foi executada. Sem aprovação automática.</p>
+  <button type="button" id="refreshPaperEvidence">Atualizar qualidade</button>
+ </div>
+ <p id="paperEvidenceStatus" class="muted" role="status" aria-live="polite" style="font-size:12px">Ainda não consultado.</p>
+ <div id="paperEvidenceRows" class="monitor-coverage-grid"></div>
+ <p class="muted" style="font-size:11px">Dados shadow são contexto, não uptime do Render nem cobertura de execução paper. São necessários registros paper auditados por vários dias antes de avaliar hospedagem contínua ou qualquer promoção de estratégia.</p>
+</details>
 <details class="monitor-alerts-details" id="monitorCoveragePanel">
  <summary><strong>Disponibilidade observada • últimas 6 horas</strong><span class="muted" id="monitorCoverageSummary"> • Cobertura de candles, não uptime</span></summary>
  <div class="between" style="margin:12px 0 8px;gap:8px;flex-wrap:wrap">
@@ -611,6 +621,41 @@ async function refreshMonitorTimeline(){
      '<div class="between monitor-timeline-axis"><small>24h atrás</small><small>12h atrás</small><small>Agora</small></div></div>';
   }).join('');
  }catch(error){status.textContent='Falha na linha do tempo: '+error.message;root.innerHTML='';}
+ finally{button.disabled=false;}
+}
+async function refreshPaperEvidence(){
+ const button=$('refreshPaperEvidence'),status=$('paperEvidenceStatus'),
+  root=$('paperEvidenceRows'),summary=$('paperEvidenceSummary');
+ button.disabled=true;
+ try{
+  const response=await fetch('/api/paper-evidence',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const report=await response.json();
+  if(!report.ok||report.mode!=='PAPER_EVIDENCE_DIAGNOSTICS')throw Error('Evidências indisponíveis');
+  const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const labels={PAPER_PERSISTENCE_NOT_CONFIRMED:'Persistência paper não confirmada',
+   PAPER_RUNNER_NOT_READY:'Motor paper indisponível',
+   LATEST_PAPER_CANDLE_STALE_OR_MISSING:'Último candle paper ausente ou atrasado',
+   PAPER_MARKET_ERROR:'Erro de mercado',
+   UNRECONCILED_POSITION_GAP:'Posição protegida após lacuna',
+   SHADOW_COVERAGE_UNAVAILABLE:'Cobertura de pesquisa indisponível',
+   SHADOW_HISTORY_QUERY_PARTIAL:'Consulta de pesquisa parcial',
+   UNOBSERVED_SHADOW_24H_SLOTS:'Há períodos sem registros da pesquisa em 24h',
+   UNOBSERVED_SHADOW_6H_SLOTS:'Há períodos sem registros da pesquisa em 6h',
+   PAPER_CANDLE_JOURNAL_7D_UNAVAILABLE:'Ainda sem diário paper completo por 7 dias'};
+  summary.textContent=' • '+report.results.length+' robôs em análise • sem liberação real';
+  status.textContent='Decisão: ainda faltam observações paper auditadas por '+report.minimumPaperObservationDays+' dias. Cobertura shadow é apenas informação complementar.';
+  root.innerHTML=(report.results||[]).map(r=>{
+   const percentage=x=>x===null?'—':Number(x).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
+   const gaps=(r.reasons||[]).map(code=>labels[code]||code);
+   return '<div class="monitor-coverage-card"><strong>'+esc(names[r.symbol]||r.symbol)+'</strong>'+
+    '<div class="monitor-coverage-value">'+(r.paperLastCandleFresh?'CANDLE RECENTE':'VERIFICAR COLETA')+'</div>'+
+    '<small>Último candle paper: '+(r.paperLastCloseAt?new Date(r.paperLastCloseAt).toLocaleString('pt-BR'):'desconhecido')+'</small>'+
+    '<small>Pesquisa independente: '+percentage(r.shadowCoverage24hPct)+' (24h) • '+percentage(r.shadowCoverage6hPct)+' (6h)</small>'+
+    '<small>Posição paper protegida: '+(r.paperGapLocked?'SIM':'não')+'</small>'+
+    '<small>Pendências: '+esc(gaps.join(' • '))+'</small></div>';
+  }).join('');
+ }catch(error){status.textContent='Falha no diagnóstico de qualidade: '+error.message;root.innerHTML='';}
  finally{button.disabled=false;}
 }
 async function refreshMonitorCoverage(){
@@ -1225,6 +1270,7 @@ $('researchRiskPanel').addEventListener('toggle',()=>{if($('researchRiskPanel').
 $('refreshMonitorHealth').addEventListener('click',refreshMonitorHealth);
 $('refreshMonitorAlerts').addEventListener('click',refreshMonitorAlerts);
 $('refreshMonitorCoverage').addEventListener('click',refreshMonitorCoverage);
+$('refreshPaperEvidence').addEventListener('click',refreshPaperEvidence);
 $('refreshMonitorTimeline').addEventListener('click',refreshMonitorTimeline);
 // Hash-addressable tabs preserve mobile navigation and back/forward without extra page loads.
 const WORKSPACES=['painel','operacoes','estrategias','noticias','auditoria'];
@@ -1246,7 +1292,7 @@ function openWorkspace(key,{scroll=true}={}){
  if(scroll)window.scrollTo({top:0,behavior:'auto'});
  if(!visitedWorkspaces.has(selected)){
   visitedWorkspaces.add(selected);
-  if(selected==='painel'){void sync();void refreshMonitorHealth();void refreshMonitorAlerts();void refreshMonitorCoverage();void refreshMonitorTimeline();}
+  if(selected==='painel'){void sync();void refreshMonitorHealth();void refreshMonitorAlerts();void refreshMonitorCoverage();void refreshPaperEvidence();void refreshMonitorTimeline();}
   if(selected==='operacoes')void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
   if(selected==='estrategias'){
    void refreshShadowTrades();
@@ -1294,6 +1340,7 @@ setInterval(()=>{if(activeWorkspace==='estrategias'){void refreshForwardStudy();
 setInterval(()=>{if(activeWorkspace==='painel')void refreshMonitorHealth();},60000);
 setInterval(()=>{if(activeWorkspace==='painel'&&$('monitorAlertsPanel').open)void refreshMonitorAlerts();},90000);
 setInterval(()=>{if(activeWorkspace==='painel'&&$('monitorCoveragePanel').open)void refreshMonitorCoverage();},120000);
+setInterval(()=>{if(activeWorkspace==='painel'&&$('paperEvidencePanel').open)void refreshPaperEvidence();},120000);
 setInterval(()=>{if(activeWorkspace==='painel'&&$('monitorTimelinePanel').open)void refreshMonitorTimeline();},120000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshPaper();},15000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshRealMarket();},60000);
