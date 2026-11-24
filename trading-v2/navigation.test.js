@@ -67,7 +67,7 @@ test('robot health cards remain in main mobile dashboard and never trigger excha
  const code=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
  assert.match(code,/fetch\('\/api\/monitor-health'/);
  assert.match(code,/NO_ELIGIBLE_SIGNALS:'Sem sinal elegível/);
- assert.match(code,/if\(selected==='painel'\)\{void sync\(\);void refreshMonitorHealth\(\);void refreshMonitorAlerts\(\);\}/);
+ assert.match(code,/if\(selected==='painel'\)\{void sync\(\);void refreshMonitorHealth\(\);void refreshMonitorAlerts\(\);void refreshMonitorCoverage\(\);\}/);
  assert.doesNotThrow(()=>new Function(code));
 });
 
@@ -80,4 +80,16 @@ test('incident timeline is collapsed inside main panel and is a separate read-on
  assert.match(code,/fetch\('\/api\/monitor-alerts'/);
  assert.match(code,/if\(activeWorkspace==='painel'&&\$\('monitorAlertsPanel'\)\.open\)/);
  assert.doesNotThrow(()=>new Function(code));
+});
+
+test('coverage measurement is collapsed and explicitly does not report server uptime',()=>{
+ const panel=html.slice(html.indexOf('id="view-painel"'),html.indexOf('id="view-operacoes"'));
+ assert.match(panel,/id="monitorCoveragePanel"/);
+ assert.match(panel,/id="monitorCoverageRows"/);
+ assert.match(panel,/id="refreshMonitorCoverage"/);
+ assert.match(panel,/não estima a disponibilidade real/);
+ const script=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+ assert.match(script,/fetch\('\/api\/monitor-coverage'/);
+ assert.match(script,/if\(activeWorkspace==='painel'&&\$\('monitorCoveragePanel'\)\.open\)/);
+ assert.doesNotThrow(()=>new Function(script));
 });
