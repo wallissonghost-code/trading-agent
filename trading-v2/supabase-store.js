@@ -6,10 +6,10 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
  if(origin.protocol!=='https:'||!origin.hostname.endsWith('.supabase.co'))throw new Error('Invalid Supabase host');
  const base=new URL('/rest/v1/trading_paper_states',origin);
  const headers={'apikey':key,'Authorization':'Bearer '+key,'content-type':'application/json','accept':'application/json'};
- async function request(method,path,body){
+ async function request(method,path,body,{ignoreDuplicates=false}={}){
    const ctrl=new AbortController();const timeout=setTimeout(()=>ctrl.abort(),8000);
    try{
-    const response=await fetchFn(path,{method,headers:{...headers,...(method==='POST'?{'prefer':'resolution=merge-duplicates,return=representation'}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:ctrl.signal});
+    const response=await fetchFn(path,{method,headers:{...headers,...(method==='POST'?{'prefer':(ignoreDuplicates?'resolution=ignore-duplicates,return=representation':'resolution=merge-duplicates,return=representation')}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:ctrl.signal});
     const message=await response.text();
     if(!response.ok)throw new Error('Remote paper persistence HTTP '+response.status+': '+message.slice(0,120));
     return message?JSON.parse(message):null;
@@ -42,23 +42,50 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
    const base=new URL('/rest/v1/trading_research_news',origin);
    const records=items.map(item=>({
     portfolio_id:id,source:item.source,url:item.url,title:item.title,published_at:item.publishedAt,
-    fetched_at:item.fetchedAt,related_symbols:item.relatedSymbols,context_category:item.category
+    fetched_at:item.fetchedAt,first_seen_at:item.fetchedAt,related_symbols:item.relatedSymbols,context_category:item.category
    }));
-   const rows=await request('POST',base,records);
+   const rows=await request('POST',base,records,{ignoreDuplicates:true});
    if(!Array.isArray(rows))throw Error('News archive write not acknowledged');
    return rows;
   },
   async listNews({limit=25}={}){
    const query=new URL('/rest/v1/trading_research_news',origin);
    query.searchParams.set('portfolio_id','eq.'+id);
-   query.searchParams.set('select','source,url,title,published_at,fetched_at,related_symbols,context_category');
+   query.searchParams.set('select','source,url,title,published_at,fetched_at,first_seen_at,related_symbols,context_category');
    query.searchParams.set('order','published_at.desc');
    query.searchParams.set('limit',String(Math.max(1,Math.min(50,Number(limit)||25))));
    const rows=await request('GET',query);
    if(!Array.isArray(rows))throw Error('Invalid news archive response');
    return rows.map(row=>({
     source:row.source,url:row.url,title:row.title,publishedAt:row.published_at,
-    fetchedAt:row.fetched_at,relatedSymbols:row.related_symbols,category:row.context_category
+    fetchedAt:row.fetched_at,firstSeenAt:row.first_seen_at,relatedSymbols:row.related_symbols,category:row.context_category
+   }));
+  },
+  async saveNewsOutcomes(outcomes){
+   if(!Array.isArray(outcomes)||outcomes.length>90)throw Error('Invalid news outcome batch');
+   if(!outcomes.length)return [];
+   const path=new URL('/rest/v1/trading_news_price_outcomes',origin);
+   const rows=outcomes.map(x=>({
+    portfolio_id:id,source:x.source,url:x.url,symbol:x.symbol,
+    observed_after:x.observedAfter,baseline_candle_open_time:x.baselineCandleOpenTime,
+    baseline_price:x.baselinePrice,outcome_candle_close_time:x.outcomeCandleCloseTime,
+    outcome_price:x.outcomePrice,horizon_minutes:60,return_pct:x.returnPct
+   }));
+   const saved=await request('POST',path,rows,{ignoreDuplicates:true});
+   if(!Array.isArray(saved))throw Error('News outcomes not acknowledged');
+   return saved;
+  },
+  async listNewsOutcomes({limit=100}={}){
+   const query=new URL('/rest/v1/trading_news_price_outcomes',origin);
+   query.searchParams.set('portfolio_id','eq.'+id);
+   query.searchParams.set('select','source,url,symbol,observed_after,return_pct,baseline_price,outcome_price,evaluated_at');
+   query.searchParams.set('order','evaluated_at.desc');
+   query.searchParams.set('limit',String(Math.max(1,Math.min(150,Number(limit)||100))));
+   const rows=await request('GET',query);
+   if(!Array.isArray(rows))throw Error('Invalid news outcomes response');
+   return rows.map(x=>({
+    source:x.source,url:x.url,symbol:x.symbol,observedAfter:x.observed_after,
+    returnPct:Number(x.return_pct),baselinePrice:Number(x.baseline_price),outcomePrice:Number(x.outcome_price),evaluatedAt:x.evaluated_at
    }));
   },
   async listSignalOutcomes({limit=100}={}){
