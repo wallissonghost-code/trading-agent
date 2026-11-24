@@ -48,3 +48,12 @@ test('robot room warns of stale collector and avoids claiming uninterrupted upti
  assert.match(html,/não há garantia de execução 24h/);
  assert.match(html,/collectionHealth==='CURRENT'/);
 });
+
+
+test('missed-candle quarantine is visibly distinct from an online robot',()=>{
+ assert.match(html,/LACUNA \/ POSIÇÃO PROTEGIDA/);
+ assert.match(html,/Lacuna histórica:/);
+ assert.match(html,/PAPER TRADING/);
+ assert.match(html,/DATA_GAP_POSITION_LOCK/);
+ assert.match(html,/Posição paper preservada/);
+});
