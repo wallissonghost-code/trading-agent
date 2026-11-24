@@ -57,3 +57,11 @@ test('missed-candle quarantine is visibly distinct from an online robot',()=>{
  assert.match(html,/DATA_GAP_POSITION_LOCK/);
  assert.match(html,/Posição paper preservada/);
 });
+
+test('gap reconciliation UI is informational and never offers unlock operations',()=>{
+ assert.match(html,/id="gapReconciliationNote"/);
+ assert.match(html,/Reconciliação somente leitura:/);
+ assert.match(html,/Nenhuma ordem gerada e nenhuma posição desbloqueada/);
+ assert.match(html,/api\/gap-reconciliation/);
+ assert.match(html,/refreshGapReconciliation/);
+});
