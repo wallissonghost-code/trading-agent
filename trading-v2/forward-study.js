@@ -115,36 +115,105 @@ export function buildShadowObservation(candles,{symbol,now=Date.now(),studyStart
   candleHigh:last.high,candleLow:last.low,atr14:atr(candles,14),stopDistance,
   executionEnabled:false};
 }
-export function summarizeShadowTrades({study,trades=[]}={}){
+const pct4=x=>Math.round(x*10000)/10000;
+const dollars=x=>Math.round(x*100)/100;
+/**
+ * Risk metrics are per (market, scenario) independent fixed-capital paper strategy.
+ * Missing outcome data and invalidated trades must never be coerced to zero profit.
+ * Drawdown is on cumulative REALIZED net P&L, not on intra-trade mark-to-market.
+ */
+export function summarizeShadowRisk(trades=[]){
+ if(!Array.isArray(trades))throw Error('Invalid experimental trade journal');
+ const valid=trades.filter(t=>t.status==='CLOSED'&&Number.isFinite(Number(t.realized_pnl_usd))&&
+  t.realized_pnl_usd!==null&&Number.isFinite(Number(t.net_return_pct))&&t.net_return_pct!==null&&
+  Number.isFinite(Number(t.exit_candle_close_time))&&Number.isFinite(Number(t.entry_candle_open_time)))
+  .sort((a,b)=>Number(a.exit_candle_close_time)-Number(b.exit_candle_close_time)||
+   Number(a.entry_candle_open_time)-Number(b.entry_candle_open_time));
+ let equity=10000,peak=10000,maxDrawdownUsd=0,maxDrawdownPct=0;
+ let grossProfits=0,grossLosses=0,wins=0,losses=0,breakevens=0;
+ for(const trade of valid){
+  const pnl=Number(trade.realized_pnl_usd);
+  if(pnl>0){grossProfits+=pnl;wins++;}
+  else if(pnl<0){grossLosses+=-pnl;losses++;}
+  else breakevens++;
+  equity+=pnl;
+  peak=Math.max(peak,equity);
+  const dd=peak-equity,percent=peak>0?dd/peak*100:0;
+  maxDrawdownUsd=Math.max(maxDrawdownUsd,dd);
+  maxDrawdownPct=Math.max(maxDrawdownPct,percent);
+ }
+ const count=valid.length;
+ // Profit factor is undefined for zero losses; never present infinity as valid edge.
+ const profitFactor=grossLosses>0?grossProfits/grossLosses:null;
+ return {trades:count,wins,losses,breakevens,
+  grossProfitsUsd:dollars(grossProfits),grossLossesUsd:dollars(grossLosses),
+  netRealizedUsd:dollars(grossProfits-grossLosses),
+  netRealizedReturnOnFixedCapitalPct:pct4((equity-10000)/10000*100),
+  averagePnLUsd:count?dollars((grossProfits-grossLosses)/count):null,
+  averageNetReturnOnPositionPct:count?pct4(valid.reduce((sum,x)=>sum+Number(x.net_return_pct),0)/count):null,
+  winRatePct:count?pct4(wins/count*100):null,
+  profitFactor:profitFactor===null?null:pct4(profitFactor),
+  profitFactorDefined:profitFactor!==null,
+  maxRealizedDrawdownUsd:dollars(maxDrawdownUsd),
+  maxRealizedDrawdownPct:pct4(maxDrawdownPct),
+  riskMetricScope:'REALIZED_CLOSED_TRADES_ONLY',
+  sufficientEvidence:false,approved:false};
+}
+export function summarizeShadowTrades({study,trades=[],observations=[]}={}){
  verifyShadowStudy(study);
- const markets=['BTCUSDT','ETHUSDT','SOLUSDT'],states=['OPEN','CLOSED','INVALIDATED'];
- const summary=Object.fromEntries(markets.map(symbol=>{
+ if(!Array.isArray(trades)||!Array.isArray(observations))throw Error('Invalid shadow journal');
+ const markets=['BTCUSDT','ETHUSDT','SOLUSDT'];
+ const allScenarios=FORWARD_KEYS;
+ const capture=Object.fromEntries(markets.map(symbol=>{
+  const items=observations.filter(x=>x.symbol===symbol);
+  const signalsByScenario=Object.fromEntries(allScenarios.map(k=>[k,items.filter(x=>x.signals?.[k]===true).length]));
+  const ordered=[...items].sort((a,b)=>Number(a.candle_close_time)-Number(b.candle_close_time));
+  const gaps=ordered.slice(1).filter((x,i)=>
+   Number(x.candle_close_time)-Number(ordered[i].candle_close_time)>300000).length;
+  const latest=ordered.at(-1);
+  return [symbol,{observedCandles:items.length,gaps,
+   latestCandleCloseTime:latest?.candle_close_time??null,
+   lastCapturedAt:latest?.observed_at??null,
+   signalsByScenario}];
+ }));
+ const bySymbol=Object.fromEntries(markets.map(symbol=>{
   const subset=trades.filter(x=>x.symbol===symbol);
-  const variants=Object.fromEntries(FORWARD_KEYS.map(scenario=>{
-   const list=subset.filter(x=>x.scenario===scenario);
-   const closed=list.filter(x=>x.status==='CLOSED');
-   const net=closed.reduce((n,x)=>n+Number(x.realized_pnl_usd),0);
-   const wins=closed.filter(x=>Number(x.realized_pnl_usd)>0).length;
-   return [scenario,{open:list.filter(x=>x.status==='OPEN').length,
-    closed:closed.length,invalidated:list.filter(x=>x.status==='INVALIDATED').length,
-    wins,winRatePct:closed.length?Math.round(wins/closed.length*10000)/100:null,
-    totalRealizedPnlUsd:Math.round(net*100)/100,
-    averageNetReturnPct:closed.length?Math.round(closed.reduce((n,x)=>n+Number(x.net_return_pct),0)/closed.length*10000)/10000:null,
+  const scenarios=Object.fromEntries(allScenarios.map(scenario=>{
+   const rows=subset.filter(x=>x.scenario===scenario);
+   const closed=rows.filter(x=>x.status==='CLOSED');
+   const risk=summarizeShadowRisk(rows);
+   return [scenario,{open:rows.filter(x=>x.status==='OPEN').length,
+    closed:closed.length,invalidated:rows.filter(x=>x.status==='INVALIDATED').length,
+    wins:risk.wins,winRatePct:risk.winRatePct,
+    totalRealizedPnlUsd:risk.netRealizedUsd,
+    averageNetReturnPct:risk.averageNetReturnOnPositionPct,
+    profitFactor:risk.profitFactor,
+    maxRealizedDrawdownUsd:risk.maxRealizedDrawdownUsd,
+    maxRealizedDrawdownPct:risk.maxRealizedDrawdownPct,
+    netReturnOnFixedCapitalPct:risk.netRealizedReturnOnFixedCapitalPct,
+    averagePnLUsd:risk.averagePnLUsd,
+    observations: capture[symbol].observedCandles,
+    signalsRecorded:capture[symbol].signalsByScenario[scenario],
     sampleAdequacy:'INSUFFICIENT',approved:false}];
   }));
-  return [symbol,{trades:subset.length,scenarios:variants}];
+  return [symbol,{trades:subset.length,capture:capture[symbol],scenarios}];
  }));
  const completed=trades.filter(x=>x.status==='CLOSED');
+ const allKnownObservations=observations.length;
  return {ok:true,version:SHADOW_VERSION,startedAt:study.started_at,
   mode:'FROZEN_PROSPECTIVE_SHADOW_TRADES',assumedStartingCapitalUsd:10000,
   open:trades.filter(x=>x.status==='OPEN').length,closed:completed.length,
   invalidated:trades.filter(x=>x.status==='INVALIDATED').length,
-  source:'supabase',bySymbol:summary,partialHistory:trades.length>=500,
-  warnings:['P&L e fills fictícios; stops e alvos intrabar são estimados a partir de OHLC.',
+  source:'supabase',bySymbol,partialHistory:trades.length>=500,
+  observationHistoryPartial:allKnownObservations>=360,
+  totalObservedCandles:allKnownObservations,
+  riskMetricScope:'REALIZED_CLOSED_TRADES_ONLY',
+  warnings:['Drawdown considera somente resultados realizados; oscilações intraposição não estão incluídas.',
+   'P&L e fills fictícios; stops e alvos intrabar são estimados a partir de OHLC.',
    'A referência de US$ 10.000 é fixa por cenário, sem capitalização dos resultados.',
    'Dados incompletos invalidam posições; nenhuma estratégia foi aprovada.'],
   orderExecutionEnabled:false,autoPromotionEnabled:false,
-  recentTrades:trades.filter(x=>states.includes(x.status)).slice(0,20).map(x=>({
+  recentTrades:trades.slice(0,20).map(x=>({
    symbol:x.symbol,scenario:x.scenario,status:x.status,entryFill:Number(x.entry_fill),
    exitFill:x.exit_fill===null?null:Number(x.exit_fill),
    netPnlUsd:x.realized_pnl_usd===null?null:Number(x.realized_pnl_usd),
