@@ -216,6 +216,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 .future-study-variant{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .future-study-variant>div:first-child{grid-column:1/-1}}
 .shadow-risk-card{padding:12px 0;border-top:1px solid #29445a;min-width:0}.shadow-risk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}.shadow-risk-grid>div{padding:11px;border:1px solid #304c65;border-radius:10px;background:#08192b;min-width:0}.shadow-risk-grid span{display:block;color:#9eb5c8;font-size:10px;line-height:1.35}.shadow-risk-grid strong{display:block;font-size:14px;margin-top:6px;overflow-wrap:anywhere}@media(max-width:720px){.shadow-risk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:380px){.shadow-risk-grid{grid-template-columns:minmax(0,1fr)}}
+.health-robots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.health-robot-card{padding:13px;border:1px solid #35536a;border-radius:12px;background:#0a1b2e;min-width:0}.health-state{font-size:11px;font-weight:700;border-radius:99px;padding:5px 8px;white-space:normal}.health-ok{background:#144537;color:#c3f6df}.health-warning{background:#4f3220;color:#ffdeb2}.health-robot-meta{display:grid;gap:6px;margin-top:10px;font-size:11px;color:#9cbbcf}.health-error{font-size:11px;color:#ffc09a;margin:5px 0 0}@media(max-width:800px){.health-robots{grid-template-columns:minmax(0,1fr)}}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Trading Agent V2">
@@ -226,6 +227,16 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 <button type="button" id="tab-auditoria" class="workspace-tab" role="tab" aria-controls="view-auditoria" aria-selected="false" tabindex="-1" data-tab="auditoria">Auditoria</button>
 </nav>
 <div id="view-painel" class="workspace-view" role="tabpanel" aria-labelledby="tab-painel" tabindex="0" data-view="painel"><div class="workspace-view-intro"><span class="eyebrow">CENTRAL DE COMANDO / PAINEL</span><p>Robôs, capital e mercado</p></div>
+<section class="panel health-panel" aria-label="Saúde dos robôs e coleta de mercado" style="margin-bottom:15px">
+ <div class="between" style="flex-wrap:wrap;gap:10px">
+  <div><div class="eyebrow">SUPERVISÃO / DADOS DE MERCADO</div><h2 style="margin:5px 0">Saúde dos robôs</h2></div>
+  <button type="button" id="refreshMonitorHealth">Verificar agora</button>
+ </div>
+ <p class="muted" style="font-size:12px">Confere a coleta prospectiva de candles de BTC, ETH e SOL. Não confunde ausência de sinal com falha na conexão. A saúde da carteira virtual é exibida separadamente.</p>
+ <p id="monitorHealthStatus" class="history-totals" aria-live="polite">Consultando os três mercados...</p>
+ <div class="health-robots" id="monitorHealthRobots"></div>
+ <p id="monitorHealthNote" class="performance-note">O Render gratuito pode suspender o servidor quando inativo. Dados atrasados serão sinalizados em vez de preenchidos retroativamente.</p>
+</section>
 <section class="hero"><div class="eyebrow">Centro de operações / painel experimental</div><h2>Sala de comando dos agentes</h2><p>Cotações públicas da Binance. Os resultados dos robôs vêm exclusivamente da carteira virtual, sem execução de ordens.</p></section>
 <section class="metrics" aria-label="Indicadores simulados"><div class="metric"><span>CAPITAL SIMULADO</span><strong id="capital">$ 10.000,00</strong></div><div class="metric"><span>RESULTADO TOTAL SIMULADO</span><strong id="pnl" class="positive">+$ 0,00</strong></div><div class="metric"><span>ROBÔS EM MONITORAMENTO</span><strong>03</strong></div><div class="metric"><span>ORDENS REAIS</span><strong>0</strong></div></section>
 <section class="room"><div class="room-top"><div><div class="eyebrow">Operations Floor / Virtual Office</div><h2 style="margin:6px 0">Mesa dos robôs</h2><p>P&L individual calculado pelas operações da carteira virtual</p></div><span class="pill" id="mode">PARADO</span></div><div class="office" id="office"></div></section>
@@ -392,6 +403,33 @@ async function refreshTradeHistory(){
 
 let forwardStudyTimer=null;
 let impactRefreshTimeout=null;
+async function refreshMonitorHealth(){
+ const status=$('monitorHealthStatus'),root=$('monitorHealthRobots'),button=$('refreshMonitorHealth'),note=$('monitorHealthNote');
+ button.disabled=true;
+ try{
+  const response=await fetch('/api/monitor-health',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const data=await response.json();
+  if(!data.ok)throw Error(data.error||'Monitor indisponível');
+  const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const labels={MONITORING:'Dados atualizados',STALE_DATA:'Dados atrasados',COLLECTION_ERROR:'Falha de coleta',AWAITING_COLLECTION:'Aguardando coleta'};
+  const signalLabels={NO_ELIGIBLE_SIGNALS:'Sem sinal elegível (normal)',SIGNALS_OBSERVED:'Sinais observados',UNKNOWN_DATA_NOT_CURRENT:'Sinal desconhecido: dados desatualizados'};
+  const overall={HEALTHY:'Coleta funcionando',DEGRADED:'Coleta com atraso',ERROR:'Falha detectada',INITIALIZING:'Iniciando monitoramento'};
+  status.textContent=(overall[data.status]||'Status não identificado')+' • Verificado em '+new Date(data.asOf).toLocaleString('pt-BR');
+  root.innerHTML=(data.symbols||[]).map(x=>
+   '<div class="health-robot-card"><div class="between" style="gap:8px;flex-wrap:wrap"><strong>'+esc(names[x.symbol]||x.symbol)+'</strong>'+
+   '<span class="health-state '+(x.healthy?'health-ok':'health-warning')+'">'+esc(labels[x.status]||x.status)+'</span></div>'+
+   '<div class="health-robot-meta"><span>Último candle: '+(x.lastCandleCloseTime?new Date(x.lastCandleCloseTime).toLocaleString('pt-BR'):'—')+'</span>'+
+   '<span>Idade: '+(x.ageSeconds===null?'—':Math.floor(x.ageSeconds/60)+' min')+'</span>'+
+   '<span>Última hora: '+Number(x.signalsLastHour||0)+' candles com sinal</span>'+
+   '<span>Lacunas recentes: '+Number(x.gapsInLast50||0)+'</span></div>'+
+   '<p class="muted" style="font-size:12px;margin:8px 0 0">'+esc(signalLabels[x.signalState]||x.signalState)+'</p>'+
+   (x.warnings||[]).map(w=>'<p class="health-error">'+esc(w)+'</p>').join('')+'</div>').join('');
+  note.textContent='Monitor independente do motor principal de paper trading. Se o servidor suspender, a coleta pode atrasar; candles faltantes nunca serão reconstruídos como operações. Último ciclo do coletor: '+
+   (data.lastCollectorCheckAt?new Date(data.lastCollectorCheckAt).toLocaleString('pt-BR'):'não registrado');
+ }catch(err){status.textContent='Falha ao verificar saúde dos dados: '+err.message;root.innerHTML='';}
+ finally{button.disabled=false;}
+}
 async function refreshShadowTrades(){
  const status=$('shadowTradeStatus'),stats=$('shadowTradeStats'),markets=$('shadowTradeMarkets'),history=$('shadowTradeHistory'),button=$('refreshShadowTrades');
  button.disabled=true;
@@ -777,6 +815,7 @@ $('refreshCooldownResearch').addEventListener('click',refreshCooldownResearch);
 $('refreshEntryFilters').addEventListener('click',refreshEntryFilters);
 $('refreshForwardStudy').addEventListener('click',refreshForwardStudy);
 $('refreshShadowTrades').addEventListener('click',refreshShadowTrades);
+$('refreshMonitorHealth').addEventListener('click',refreshMonitorHealth);
 // Hash-addressable tabs preserve mobile navigation and back/forward without extra page loads.
 const WORKSPACES=['painel','operacoes','estrategias','noticias','auditoria'];
 let activeWorkspace=null;
@@ -797,7 +836,7 @@ function openWorkspace(key,{scroll=true}={}){
  if(scroll)window.scrollTo({top:0,behavior:'auto'});
  if(!visitedWorkspaces.has(selected)){
   visitedWorkspaces.add(selected);
-  if(selected==='painel')void sync();
+  if(selected==='painel'){void sync();void refreshMonitorHealth();}
   if(selected==='operacoes')void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
   if(selected==='estrategias'){
    void refreshShadowTrades();
@@ -809,6 +848,8 @@ function openWorkspace(key,{scroll=true}={}){
   }
   if(selected==='noticias'){void refreshNewsResearch();void refreshNewsImpact();}
   if(selected==='auditoria'){void refreshResearchAudit();void refreshLossDiagnostics();}
+ }else if(selected==='painel'){
+  void refreshMonitorHealth();
  }else if(selected==='operacoes'){
   void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
  }else if(selected==='estrategias'){
@@ -837,6 +878,7 @@ window.addEventListener('hashchange',()=>openWorkspace(decodeURIComponent(locati
 renderRobots(null);
 openWorkspace(decodeURIComponent(location.hash.slice(1)),{scroll:false});
 setInterval(()=>{if(activeWorkspace==='estrategias'){void refreshForwardStudy();void refreshShadowTrades();}},120000);
+setInterval(()=>{if(activeWorkspace==='painel')void refreshMonitorHealth();},60000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshPaper();},15000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshRealMarket();},60000);
 setInterval(()=>{if(activeWorkspace==='operacoes'){
