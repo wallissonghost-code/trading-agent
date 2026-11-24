@@ -7,7 +7,7 @@ const ASSETS=Object.freeze(['BTCUSDT','ETHUSDT','SOLUSDT']);
 export function summarizeObservedCoverage({observations=[],events=[],states=[],now=Date.now(),partial=false}={}){
  if(!Array.isArray(observations)||!Array.isArray(events)||!Array.isArray(states)||!Number.isFinite(now))
   throw Error('Invalid observed coverage input');
- const endSlot=Math.floor((now-1)/SLOT_MS)*SLOT_MS-1;
+ const endSlot=Math.floor(now/SLOT_MS)*SLOT_MS-1;
  const startSlot=endSlot-COVERAGE_WINDOW_MS+SLOT_MS;
  const expectedSlots=COVERAGE_WINDOW_MS/SLOT_MS;
  const bySymbol=Object.fromEntries(ASSETS.map(symbol=>{
