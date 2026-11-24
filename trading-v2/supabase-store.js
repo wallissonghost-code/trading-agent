@@ -42,6 +42,17 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
    if(!Array.isArray(saved))throw Error('Frozen shadow archive did not acknowledge observation');
    return saved.length>0;
   },
+  async listShadowObservations({limit=360}={}){
+   const path=new URL('/rest/v1/trading_shadow_candles',origin);
+   path.searchParams.set('portfolio_id','eq.'+id);
+   path.searchParams.set('version','eq.shadow-v1-20261124');
+   path.searchParams.set('select','symbol,candle_close_time,observed_at,signals');
+   path.searchParams.set('order','candle_close_time.desc');
+   path.searchParams.set('limit',String(Math.max(1,Math.min(360,Number(limit)||360))));
+   const rows=await request('GET',path);
+   if(!Array.isArray(rows))throw Error('Invalid prospective OHLC observations');
+   return rows;
+  },
   async listShadowTrades({limit=500}={}){
    const path=new URL('/rest/v1/trading_shadow_trades',origin);
    path.searchParams.set('portfolio_id','eq.'+id);
