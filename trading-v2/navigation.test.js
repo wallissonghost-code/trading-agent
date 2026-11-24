@@ -128,3 +128,15 @@ test('NOVA paper decision diagnostics are derived from persisted per-symbol deci
  assert.match(script,/RSI_OUTSIDE_BUY_RANGE/);
  assert.doesNotThrow(()=>new Function(script));
 });
+
+test('new losses audit remains collapsed, read-only and isolated in Strategies tab',()=>{
+ const strategies=html.slice(html.indexOf('id="view-estrategias"'),html.indexOf('id="view-noticias"'));
+ assert.match(strategies,/id="stopReviewPanel"/);
+ assert.match(strategies,/id="stopReviewResults"/);
+ assert.match(strategies,/id="refreshStopReview"/);
+ assert.match(strategies,/Nenhuma estratégia aprovada/);
+ const js=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+ assert.match(js,/fetch\('\/api\/stop-review'/);
+ assert.match(js,/\$\('stopReviewPanel'\)\.addEventListener\('toggle'/);
+ assert.doesNotThrow(()=>new Function(js));
+});
