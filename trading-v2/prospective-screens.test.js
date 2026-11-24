@@ -41,3 +41,28 @@ test('results show no false profit or approvals when study has no outcomes',()=>
  assert.equal(x.realOrdersEnabled,false);
  assert.equal(x.sampleAdequacy,'INSUFFICIENT');
 });
+
+test('data completeness distinguishes waiting for a new candle from failed evaluation',()=>{
+ const t=1795517699999;
+ const obs=(time,reference)=>({symbol:'ETHUSDT',candle_close_time:time,
+  observed_at:new Date(time).toISOString(),signals:{reference}});
+ const x=summarizeScreenStudy({study,observations:[obs(t,true)],outcomes:[]});
+ assert.equal(x.bySymbol.ETHUSDT.scenarios.reference.awaitingNextCandle,1);
+ assert.equal(x.bySymbol.ETHUSDT.scenarios.reference.unscoredWithNextCandle,0);
+ const y=summarizeScreenStudy({study,observations:[obs(t,true),obs(t+300000,false)],outcomes:[]});
+ assert.equal(y.bySymbol.ETHUSDT.scenarios.reference.awaitingNextCandle,0);
+ assert.equal(y.bySymbol.ETHUSDT.scenarios.reference.unscoredWithNextCandle,1);
+ const z=summarizeScreenStudy({study,observations:[obs(t,true),obs(t+600000,false)],outcomes:[]});
+ assert.equal(z.bySymbol.ETHUSDT.gapIntervals,1);
+ assert.equal(z.bySymbol.ETHUSDT.scenarios.reference.awaitingNextCandle,1);
+ assert.equal(z.bySymbol.ETHUSDT.scenarios.reference.unscoredWithNextCandle,0);
+});
+test('an outcome closes pending reference signal without inventing further orders',()=>{
+ const t=1795517699999;
+ const row={symbol:'BTCUSDT',candle_close_time:t,signals:{reference:true}};
+ const outcome={symbol:'BTCUSDT',scenario:'reference',signal_candle_close_time:t,modeled_net_return_pct:-.3};
+ const x=summarizeScreenStudy({study,observations:[row],outcomes:[outcome]});
+ const r=x.bySymbol.BTCUSDT.scenarios.reference;
+ assert.equal(r.scored,1);assert.equal(r.awaitingNextCandle,0);
+ assert.equal(r.unscoredWithNextCandle,0);assert.equal(x.realOrdersEnabled,false);
+});
