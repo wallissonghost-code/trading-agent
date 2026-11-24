@@ -228,3 +228,25 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 **Atenção para a operação:** trancar uma posição virtual cuja trajetória não foi totalmente observada é uma escolha conservadora e deliberada. Não desbloquear, eliminar ou liquidar a posição sem definir procedimento de reconciliação. Os dados históricos e a carteira persistente não são resetados. Este mecanismo não restaura candles nem cria simulações retrospectivas de execução.
 
 **Pendência de infraestrutura:** plano Render gratuito continua sujeito à hibernação; a proteção de lacunas não garante execução 24/7. É necessário consultar status de deploy e logs antes de afirmar estabilidade da última versão.
+
+
+## 16. Auditoria de reconciliação de lacunas — 24/11/2026
+
+**Objetivo:** permitir revisão segura de posições virtuais em quarentena por ausência de candles, sem criar saídas retrospectivas ou alterar ordens.
+
+**Código implementado**
+- `trading-v2/gap-reconciliation.js` (`b1ffd450`): função pura `inspectGapReconciliation` valida continuidade de candles Binance Spot de 5 minutos desde o último candle registrado antes da lacuna até o último candle paper. Retorna `MANUAL_REVIEW_REQUIRED`, `HISTORY_INCOMPLETE`, `INSUFFICIENT_EVIDENCE` ou `NO_QUARANTINE`, e classifica primeiro possível toque em stop, alvo ou ambos na mesma vela. **Um toque não comprova ordem executada nem permite desbloqueio**.
+- `trading-v2/gap-reconciliation.test.js` (`c0a95b66`): testes de cobertura completa/incompleta, dados inválidos/duplicados, ambiguidade de OHLC, ausência de autorização e imutabilidade do estado.
+- `trading-v2/server.js` (`e7df26cc`): rota `GET /api/gap-reconciliation`, consulta até 1000 candles públicos somente para ativos com `gapLocks=true`, nunca altera carteira, não requer credenciais de exchange e não possui POST de desbloqueio.
+- `trading-v2/index.html` (`f9632638`): aviso de auditoria no painel quando houver quarentena; mostra a classificação sem permitir liberação da posição.
+- `trading-v2/agent-diagnostics.api.test.js` (`bee34afa`): teste HTTP do endpoint de auditoria sem trava.
+- `trading-v2/ui.test.js` (`529cad93`): confirma avisos de somente leitura.
+- `trading-v2/README.md` (`31c482e2`): descreve limites e critérios da auditoria.
+
+**Testes confirmados:** GitHub Actions run `45490486702` no commit `529cad93`, **157 aprovados, zero falhas, zero ignorados**. Link https://github.com/wallissonghost-code/trading-agent/actions/runs/45490486702.
+
+**Deploy:** Render informou commit `f9632638` como `live` em `2026-11-24T21:22:53Z`, contendo módulo, API e interface. Commits posteriores eram testes/documentação e a publicação final deve ser verificada separadamente. Não houve mudança do plano gratuito.
+
+**Estado observado do Supabase:** em `2026-11-24T21:23:18Z`, `trading_paper_states.updated_at=2026-11-24T21:20:03Z`, com `gapLocks={}`, `dataGaps={}` e posição BTCUSDT virtual ainda aberta. Não havia quarentena ativa para avaliar nesse instante. Nunca mutar dados para simular ocorrência de lacuna em produção.
+
+**Limites:** nenhum método automatizado de reconciliação efetiva/desbloqueio foi autorizado ou implementado. Evidências OHLC não revelam a ordem intravela e não podem ser tratadas como fills reais. A implantação do Render free pode dormir, o que requer monitoramento honesto e eventual infraestrutura apropriada para coleta contínua.
