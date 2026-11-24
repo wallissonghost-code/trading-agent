@@ -67,7 +67,7 @@ test('robot health cards remain in main mobile dashboard and never trigger excha
  const code=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
  assert.match(code,/fetch\('\/api\/monitor-health'/);
  assert.match(code,/NO_ELIGIBLE_SIGNALS:'Sem sinal elegível/);
- assert.match(code,/if\(selected==='painel'\)\{void sync\(\);void refreshMonitorHealth\(\);void refreshMonitorAlerts\(\);void refreshMonitorCoverage\(\);void refreshMonitorTimeline\(\);\}/);
+ assert.match(code,/if\(selected==='painel'\)\{void sync\(\);void refreshMonitorHealth\(\);void refreshMonitorAlerts\(\);void refreshMonitorCoverage\(\);void refreshPaperEvidence\(\);void refreshMonitorTimeline\(\);\}/);
  assert.doesNotThrow(()=>new Function(code));
 });
 
