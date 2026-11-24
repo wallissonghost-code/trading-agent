@@ -17,6 +17,25 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
  }
  return {
   kind:'supabase',
+  async appendAdminReviewAccess({outcome,route='gap-review'}={}){
+   if(!['AUTHORIZED','UNAUTHORIZED','NOT_CONFIGURED'].includes(outcome)||
+      !['gap-review','audit-log'].includes(route))throw Error('Invalid admin audit event');
+   const endpoint=new URL('/rest/v1/trading_admin_access_audit',origin);
+   const rows=await request('POST',endpoint,{portfolio_id:id,event_type:'ADMIN_REVIEW_ACCESS',outcome,route});
+   if(!Array.isArray(rows)||rows.length!==1||!Number.isSafeInteger(Number(rows[0].id)))
+    throw Error('Administrative audit insert not acknowledged');
+   return {id:Number(rows[0].id),occurredAt:rows[0].occurred_at};
+  },
+  async listAdminReviewAccess({limit=50}={}){
+   const endpoint=new URL('/rest/v1/trading_admin_access_audit',origin);
+   endpoint.searchParams.set('portfolio_id','eq.'+id);
+   endpoint.searchParams.set('select','id,event_type,outcome,route,occurred_at');
+   endpoint.searchParams.set('order','occurred_at.desc,id.desc');
+   endpoint.searchParams.set('limit',String(Math.max(1,Math.min(100,Math.trunc(Number(limit)||50)))));
+   const rows=await request('GET',endpoint);
+   if(!Array.isArray(rows))throw Error('Invalid admin audit report');
+   return rows;
+  },
   async recordMonitoringTransitions(symbols){
    if(!Array.isArray(symbols)||symbols.length!==3||
     symbols.some(x=>!['BTCUSDT','ETHUSDT','SOLUSDT'].includes(x.symbol)||
