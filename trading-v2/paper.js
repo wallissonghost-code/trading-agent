@@ -7,12 +7,12 @@ const round=(x,n=8)=>Number(x.toFixed(n));
 const fee=0.001;
 const maxPositions=2;
 const maxExposure=0.5;
-export const createAccount=()=>({schema:1,startingCash:10000,cash:10000,realizedPnl:0,realizedBySymbol:{},lastMarks:{},lastDecision:null,positions:{},trades:[],lastCandle:{},lastError:{},updatedAt:null});
+export const createAccount=()=>({schema:1,startingCash:10000,cash:10000,realizedPnl:0,realizedBySymbol:{},lastMarks:{},lastDecision:null,lastDecisions:{},positions:{},trades:[],lastCandle:{},lastError:{},updatedAt:null});
 export function snapshot(account, quotes={}){
   const positions=Object.values(account.positions).map(p=>{const markPrice=quotes[p.symbol]||account.lastMarks?.[p.symbol]||p.entry;return {...p,markPrice,unrealizedPnl:round((markPrice-p.entry)*p.quantity - p.entry*p.quantity*fee - markPrice*p.quantity*fee,2)};});
   const equity=account.cash+positions.reduce((sum,p)=>sum+p.quantity*p.markPrice,0);
   const agentPnl=Object.fromEntries(SYMBOLS.map(symbol=>[symbol,{realizedPnl:round(account.realizedBySymbol?.[symbol]??account.trades.filter(t=>t.symbol===symbol&&t.side==='SELL').reduce((sum,t)=>sum+(t.realizedPnl||0),0),2),unrealizedPnl:round(positions.find(p=>p.symbol===symbol)?.unrealizedPnl||0,2)}]));
-  return {mode:'PAPER_ONLY',currency:'USDT',startingCash:account.startingCash,agentPnl,cash:round(account.cash,2),equity:round(equity,2),realizedPnl:round(account.realizedPnl,2),unrealizedPnl:round(positions.reduce((x,p)=>x+p.unrealizedPnl,0),2),positions,trades:account.trades.slice(0,30),lastCandle:account.lastCandle,lastError:account.lastError,updatedAt:account.updatedAt,dataSource:'binance_public_spot',executionEnabled:false,persistence:'local_ephemeral'};
+  return {mode:'PAPER_ONLY',currency:'USDT',startingCash:account.startingCash,agentPnl,cash:round(account.cash,2),equity:round(equity,2),realizedPnl:round(account.realizedPnl,2),unrealizedPnl:round(positions.reduce((x,p)=>x+p.unrealizedPnl,0),2),positions,trades:account.trades.slice(0,30),lastCandle:account.lastCandle,lastDecision:account.lastDecision,lastDecisions:account.lastDecisions||{},lastError:account.lastError,updatedAt:account.updatedAt,dataSource:'binance_public_spot',executionEnabled:false,persistence:'local_ephemeral'};
 }
 export function processCandle(account,symbol,candles,{now=new Date().toISOString()}={}){
   if(!SYMBOLS.includes(symbol))throw new Error('Unsupported pair');
@@ -30,10 +30,19 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
   // NOT a realizable historical fill. Intrabar stop/take uses conservative stop-first assumption.
   const position=account.positions[symbol];
   const previousTradeCount=account.trades.length;
+  account.lastDecisions??={};
   const decision={symbol,candleCloseTime:c.closeTime,observedAt:now,strategy:'EMA_RSI_V1',classification:signal.classification,price:c.close,
     rsi14:Number.isFinite(signal.rsi14)?signal.rsi14:null,ema9:Number.isFinite(signal.ema9)?signal.ema9:null,
     ema21:Number.isFinite(signal.ema21)?signal.ema21:null,atr14:Number.isFinite(signal.atr14)?signal.atr14:null,
-    action:'WAIT',reason:'NO_NEW_ENTRY',simulated:true};
+    action:'WAIT',reason:'NO_NEW_ENTRY',simulated:true,
+    entryGates:{emaBullish:signal.ema9>signal.ema21,
+      rsiInBuyRange:signal.rsi14>=50&&signal.rsi14<=70,
+      positionSlotsAvailable:Object.keys(account.positions).length<maxPositions,
+      paperOnly:true}};
+  // Explanations are observational. They do not change entry criteria.
+  if(!position&&signal.classification!=='watch_long'){
+    decision.reason=signal.ema9<=signal.ema21?'EMA_TREND_NOT_BULLISH':'RSI_OUTSIDE_BUY_RANGE';
+  }
   if(position){
     const stopped=c.low<=position.stop;
     const targetHit=c.high>=position.take;
@@ -55,7 +64,7 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
     const exposure=Object.values(account.positions).reduce((s,p)=>s+p.quantity*p.entry,0);
     const equity=account.cash+Object.values(account.positions).reduce((s,p)=>s+p.quantity*(account.lastMarks[p.symbol]||p.entry),0);
     const drawdown=(account.startingCash-equity)/account.startingCash;
-    if(drawdown>=0.05){decision.reason='PORTFOLIO_DRAWDOWN_LOCK';account.lastDecision=decision;account.lastCandle[symbol]=c.closeTime;account.updatedAt=now;return {processed:true,reason:'portfolio_drawdown_lock'};}
+    if(drawdown>=0.05){decision.reason='PORTFOLIO_DRAWDOWN_LOCK';account.lastDecision=decision;account.lastDecisions[symbol]=decision;account.lastCandle[symbol]=c.closeTime;account.updatedAt=now;return {processed:true,reason:'portfolio_drawdown_lock'};}
     const stop=signal.exampleStop;
     const riskBudget=Math.max(0,0.01*equity);
     const riskPerUnit=(c.close-stop)+2*fee*c.close;
@@ -69,9 +78,14 @@ export function processCandle(account,symbol,candles,{now=new Date().toISOString
       account.positions[symbol]={symbol,entry:c.close,stop:round(stop),take:round(c.close+2*(c.close-stop)),quantity:round(quantity),cost:round(cost),openedAt:now,entryCandle:c.closeTime};
       account.trades.unshift({symbol,side:'BUY',reason:'EMA_RSI_WATCH_LONG',price:c.close,quantity:round(quantity),fee:round(notional*fee,8),realizedPnl:null,time:now,candleCloseTime:c.closeTime,simulated:true});
       decision.action='BUY';decision.reason='EMA_RSI_WATCH_LONG';
+    }else{
+      decision.reason='CAPITAL_OR_RISK_LIMIT';
     }
+  }else if(!position&&signal.classification==='watch_long'){
+    decision.reason='MAX_OPEN_POSITIONS';
   }
   account.lastDecision=decision;
+  account.lastDecisions[symbol]=decision;
   account.lastCandle[symbol]=c.closeTime;
   account.updatedAt=now;
   account.trades.splice(100);
