@@ -35,3 +35,15 @@ test('lab refuses insufficient or nonconsecutive candles instead of filling gaps
  data[200].closeTime+=60000;
  assert.throws(()=>runStrategyLab(data),/consecutive/);
 });
+
+test('research cost scenarios remain isolated and default retains the baseline assumptions',()=>{
+ const candles=makeCandles();
+ const baseline=runStrategyLab(candles);
+ const zero=runStrategyLab(candles,{costModel:{feeRate:0,slippageRate:0}});
+ assert.equal(baseline.feeRate,.001);assert.equal(baseline.slippageRate,.0005);
+ assert.equal(zero.feeRate,0);assert.equal(zero.slippageRate,0);
+ assert.equal(baseline.candidates.length,zero.candidates.length);
+ assert.equal(baseline.autoPromotionEnabled,false);
+ assert.equal(zero.autoPromotionEnabled,false);
+ assert.throws(()=>runStrategyLab(candles,{costModel:{feeRate:-.01,slippageRate:0}}),/Invalid research-only cost model/);
+});
