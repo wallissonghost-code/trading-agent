@@ -58,3 +58,15 @@ test('prospective complete-trade cockpit stays inside Strategies tab and loads o
  assert.match(script,/if\(selected==='estrategias'\)\{\s*void refreshShadowTrades\(\)/);
  assert.doesNotThrow(()=>new Function(script));
 });
+
+test('robot health cards remain in main mobile dashboard and never trigger exchange trades',()=>{
+ const panel=html.slice(html.indexOf('id="view-painel"'),html.indexOf('id="view-operacoes"'));
+ assert.match(panel,/id="monitorHealthStatus"/);
+ assert.match(panel,/id="monitorHealthRobots"/);
+ assert.match(panel,/id="refreshMonitorHealth"/);
+ const code=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+ assert.match(code,/fetch\('\/api\/monitor-health'/);
+ assert.match(code,/NO_ELIGIBLE_SIGNALS:'Sem sinal elegível/);
+ assert.match(code,/if\(selected==='painel'\)\{void sync\(\);void refreshMonitorHealth\(\);\}/);
+ assert.doesNotThrow(()=>new Function(code));
+});
