@@ -92,7 +92,7 @@ export function verifyShadowStudy(study){
   Number(study.fee_bps)!==10||Number(study.slippage_bps)!==5||
   Number(study.risk_budget_pct)!==1||Number(study.max_exposure_pct)!==50||
   Number(study.atr_multiplier)!==2.5||Number(study.target_r_multiple)!==2||
-  Number(study.max_holding_bars)!==24)
+  Number(study.max_holding_bars)!==24||Number(study.cooldown_bars)!==6)
   throw Error('Shadow study frozen execution rules mismatch');
  const configs=study.configs;
  if(!configs||Object.keys(configs).length!==FILTER_SCENARIOS.length)
