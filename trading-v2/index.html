@@ -218,6 +218,7 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
 .shadow-risk-card{padding:12px 0;border-top:1px solid #29445a;min-width:0}.shadow-risk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}.shadow-risk-grid>div{padding:11px;border:1px solid #304c65;border-radius:10px;background:#08192b;min-width:0}.shadow-risk-grid span{display:block;color:#9eb5c8;font-size:10px;line-height:1.35}.shadow-risk-grid strong{display:block;font-size:14px;margin-top:6px;overflow-wrap:anywhere}@media(max-width:720px){.shadow-risk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:380px){.shadow-risk-grid{grid-template-columns:minmax(0,1fr)}}
 .health-robots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.health-robot-card{padding:13px;border:1px solid #35536a;border-radius:12px;background:#0a1b2e;min-width:0}.health-state{font-size:11px;font-weight:700;border-radius:99px;padding:5px 8px;white-space:normal}.health-ok{background:#144537;color:#c3f6df}.health-warning{background:#4f3220;color:#ffdeb2}.health-robot-meta{display:grid;gap:6px;margin-top:10px;font-size:11px;color:#9cbbcf}.health-error{font-size:11px;color:#ffc09a;margin:5px 0 0}@media(max-width:800px){.health-robots{grid-template-columns:minmax(0,1fr)}}
 .monitor-alerts-details{margin:12px 0;padding:11px;border:1px solid #32506a;border-radius:12px;background:#07182b}.monitor-alerts-details>summary{cursor:pointer;line-height:1.5;font-size:13px}.monitor-alerts-rows{max-height:300px;overflow-y:auto}.monitor-alert-event{padding:10px 3px;border-top:1px solid #29435c;display:grid;gap:6px;font-size:12px}.monitor-alert-event>div{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.monitor-alert-event small{font-size:11px;color:#9bb4c6}.monitor-alert-type{padding:3px 7px;border-radius:9px;font-size:11px;font-weight:700}.alert-recovered{color:#b3edce;background:#154334}.alert-problem{color:#ffd4ad;background:#58331e}
+.monitor-coverage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.monitor-coverage-card{padding:12px;border-radius:12px;border:1px solid #34516a;background:#091b30;min-width:0}.monitor-coverage-card strong,.monitor-coverage-card small{display:block;overflow-wrap:anywhere}.monitor-coverage-card small{font-size:11px;color:#a3bcd1;margin-top:7px}.monitor-coverage-value{font-size:23px;font-weight:800;margin:8px 0 6px}.monitor-coverage-bar{height:8px;border-radius:30px;background:#334559;overflow:hidden}.monitor-coverage-bar>div{height:100%;background:#45baaa;border-radius:30px;max-width:100%}@media(max-width:780px){.monitor-coverage-grid{grid-template-columns:minmax(0,1fr)}}
 </style></head><body><main>
 <header><div class="brand"><div class="logo">◈</div><div><div class="eyebrow">Autonomous Trading Systems</div><h1>TRADING AGENT <span style="color:#51cdaa">V2</span></h1></div></div><div class="between"><span class="pill">● PAPER TRADING • SEM DINHEIRO REAL</span><button id="toggle" type="button" aria-pressed="false">Atualizar painel</button></div></header>
 <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Trading Agent V2">
@@ -236,7 +237,17 @@ background-position:center,left 43%!important;background-size:cover,auto 170%!im
  <p class="muted" style="font-size:12px">Confere a coleta prospectiva de candles de BTC, ETH e SOL. Não confunde ausência de sinal com falha na conexão. A saúde da carteira virtual é exibida separadamente.</p>
  <p id="monitorHealthStatus" class="history-totals" aria-live="polite">Consultando os três mercados...</p>
  <div class="health-robots" id="monitorHealthRobots"></div>
- <details class="monitor-alerts-details" id="monitorAlertsPanel">
+ <details class="monitor-alerts-details" id="monitorCoveragePanel">
+ <summary><strong>Disponibilidade observada • últimas 6 horas</strong><span class="muted" id="monitorCoverageSummary"> • Cobertura de candles, não uptime</span></summary>
+ <div class="between" style="margin:12px 0 8px;gap:8px;flex-wrap:wrap">
+  <p class="muted" style="font-size:12px;margin:0">Mostra quantos candles realmente foram gravados; não estima a disponibilidade real do servidor.</p>
+  <button type="button" id="refreshMonitorCoverage">Atualizar cobertura</button>
+ </div>
+ <p id="monitorCoverageStatus" class="muted" style="font-size:12px">Ainda não carregado.</p>
+ <div id="monitorCoverageRows" class="monitor-coverage-grid"></div>
+ <p class="muted" style="font-size:11px">Janelas sem registro são desconhecidas: podem envolver suspensão do Render, falha de rede ou coleta. Não representam tempo de indisponibilidade comprovado.</p>
+</details>
+<details class="monitor-alerts-details" id="monitorAlertsPanel">
  <summary><strong>Histórico de alertas e recuperações</strong><span class="muted" id="monitorAlertsSummary"> • Consultar ocorrências</span></summary>
  <div class="between" style="margin:12px 0 8px;gap:8px;flex-wrap:wrap"><p class="muted" style="font-size:12px;margin:0">Registros persistentes de atrasos, erros e retorno à normalidade.</p><button id="refreshMonitorAlerts" type="button">Atualizar histórico</button></div>
  <p id="monitorAlertsStatus" class="muted" style="font-size:12px">Histórico ainda não carregado.</p>
@@ -411,6 +422,33 @@ async function refreshTradeHistory(){
 
 let forwardStudyTimer=null;
 let impactRefreshTimeout=null;
+async function refreshMonitorCoverage(){
+ const button=$('refreshMonitorCoverage'),status=$('monitorCoverageStatus'),root=$('monitorCoverageRows'),summary=$('monitorCoverageSummary');
+ button.disabled=true;
+ try{
+  const res=await fetch('/api/monitor-coverage',{cache:'no-store'});
+  if(!res.ok)throw Error('HTTP '+res.status);
+  const data=await res.json();
+  if(!data.ok)throw Error(data.error||'Resumo indisponível');
+  const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
+  const pct=x=>Number(x).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
+  const entries=Object.entries(data.bySymbol||{});
+  status.textContent='Cobertura registrada de '+new Date(data.windowStart).toLocaleString('pt-BR')+
+   ' até '+new Date(data.windowEnd).toLocaleString('pt-BR')+
+   ' • '+data.expectedSlotsPerMarket+' intervalos esperados por mercado';
+  summary.textContent=' • Cobertura observada, não disponibilidade 24h';
+  root.innerHTML=entries.map(([symbol,record])=>
+   '<div class="monitor-coverage-card"><strong>'+esc(names[symbol]||symbol)+'</strong>'+
+   '<div class="monitor-coverage-value">'+pct(record.observedCoveragePct)+'</div>'+
+   '<div class="monitor-coverage-bar" role="meter" aria-label="Cobertura observada '+esc(names[symbol]||symbol)+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Number(record.observedCoveragePct)+'"><div style="width:'+Math.min(100,Math.max(0,Number(record.observedCoveragePct)))+'%"></div></div>'+
+   '<small>'+record.recordedSlots+' de '+record.expectedSlots+' candles • '+record.unobservedSlots+' não observados</small>'+
+   '<small>'+record.unobservedIntervals+' intervalos sem registros • maior trecho: '+record.longestUnobservedRunMinutes+' min</small>'+
+   '<small>'+record.incidentStartedEvents+' alertas de início • '+record.recoveryEvents+' recuperações (entre os eventos recentes)</small>'+
+   '<small>Último estado observado: '+esc({MONITORING:'normal',STALE_DATA:'atrasado',COLLECTION_ERROR:'falha detectada',AWAITING_COLLECTION:'aguardando coleta'}[record.currentObservedState]||'não verificado')+'</small></div>'
+  ).join('');
+ }catch(err){status.textContent='Não foi possível carregar a cobertura: '+err.message;root.innerHTML='';}
+ finally{button.disabled=false;}
+}
 async function refreshMonitorAlerts(){
  const button=$('refreshMonitorAlerts'),status=$('monitorAlertsStatus'),root=$('monitorAlertsRows'),summary=$('monitorAlertsSummary');
  button.disabled=true;
@@ -849,6 +887,7 @@ $('refreshForwardStudy').addEventListener('click',refreshForwardStudy);
 $('refreshShadowTrades').addEventListener('click',refreshShadowTrades);
 $('refreshMonitorHealth').addEventListener('click',refreshMonitorHealth);
 $('refreshMonitorAlerts').addEventListener('click',refreshMonitorAlerts);
+$('refreshMonitorCoverage').addEventListener('click',refreshMonitorCoverage);
 // Hash-addressable tabs preserve mobile navigation and back/forward without extra page loads.
 const WORKSPACES=['painel','operacoes','estrategias','noticias','auditoria'];
 let activeWorkspace=null;
@@ -869,7 +908,7 @@ function openWorkspace(key,{scroll=true}={}){
  if(scroll)window.scrollTo({top:0,behavior:'auto'});
  if(!visitedWorkspaces.has(selected)){
   visitedWorkspaces.add(selected);
-  if(selected==='painel'){void sync();void refreshMonitorHealth();void refreshMonitorAlerts();}
+  if(selected==='painel'){void sync();void refreshMonitorHealth();void refreshMonitorAlerts();void refreshMonitorCoverage();}
   if(selected==='operacoes')void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
   if(selected==='estrategias'){
    void refreshShadowTrades();
@@ -884,6 +923,7 @@ function openWorkspace(key,{scroll=true}={}){
  }else if(selected==='painel'){
   void refreshMonitorHealth();
   void refreshMonitorAlerts();
+  void refreshMonitorCoverage();
  }else if(selected==='operacoes'){
   void Promise.allSettled([refreshTradeHistory(),refreshPerformance(),refreshDecisions(),refreshSignalEvaluation()]);
  }else if(selected==='estrategias'){
@@ -914,6 +954,7 @@ openWorkspace(decodeURIComponent(location.hash.slice(1)),{scroll:false});
 setInterval(()=>{if(activeWorkspace==='estrategias'){void refreshForwardStudy();void refreshShadowTrades();}},120000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshMonitorHealth();},60000);
 setInterval(()=>{if(activeWorkspace==='painel'&&$('monitorAlertsPanel').open)void refreshMonitorAlerts();},90000);
+setInterval(()=>{if(activeWorkspace==='painel'&&$('monitorCoveragePanel').open)void refreshMonitorCoverage();},120000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshPaper();},15000);
 setInterval(()=>{if(activeWorkspace==='painel')void refreshRealMarket();},60000);
 setInterval(()=>{if(activeWorkspace==='operacoes'){
