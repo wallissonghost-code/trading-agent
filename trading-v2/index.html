@@ -391,6 +391,7 @@ function renderRobots(p){
   const diag=latestAgentDiagnostics?.agents?.find(x=>x.symbol===r.symbol);
   const status=diag?({OPERANDO:'OPERANDO (PAPER)',AGUARDANDO_SINAL:'AGUARDANDO SINAL',COLETA_ATRASADA:'COLETA ATRASADA',SEM_DADOS:'SEM DADOS',ERRO:'FALHA DETECTADA',PAUSADO:'PAUSADO'}[diag.state]||diag.state):'DIAGNÓSTICO INDISPONÍVEL';
   const signal=diag?.reason||(!available?'Aguardando carteira':'Aguardando diagnóstico');
+  const detail=diag?.lastCandleCloseAt?'Último candle: '+new Date(diag.lastCandleCloseAt).toLocaleString('pt-BR'): 'Último candle: indisponível';
   return '<article class="agent-card '+['alpha','nova','orion'][i]+'"><div class="agent-art"><img src="'+r.art+'" alt="Ilustração do robô '+r.name+' na mesa de operações" decoding="async" loading="lazy" onerror="this.closest(\'.agent-art\').classList.add(\'art-error\')"></div>'+
    '<div class="agent-info"><div class="agent-top"><span class="agent-tag">AGENTE 0'+(i+1)+'</span><span class="agent-status">● '+status+'</span></div>'+
    '<h3 class="agent-name">'+r.name+'</h3><span class="agent-pair">'+r.pair+'</span>'+
@@ -398,7 +399,7 @@ function renderRobots(p){
    '<div class="agent-rows"><div class="agent-row"><span>◉ Estado</span><strong>'+esc(signal)+'</strong></div>'+
    '<div class="agent-row"><span>✓ Realizado</span><strong>'+ (available?usd(realized):'—')+'</strong></div>'+
    '<div class="agent-row"><span>◷ Em aberto</span><strong>'+ (available?usd(unrealized):'—')+'</strong></div></div>'+
-   '<span class="agent-footer">Valores da carteira virtual • Sem ordens reais</span></div></article>';
+   '<span class="agent-footer">'+esc(detail)+' • Valores fictícios, sem ordens reais</span></div></article>';
  }).join('');
 }
 function renderAgentPaperDecisions(p){
@@ -462,9 +463,11 @@ async function refreshPaper(){
   ]);
   latestAgentDiagnostics=null;
   if(diagResult.status==='fulfilled'&&diagResult.value.ok){
-   const report=await diagResult.value.json();
-   // Keep per-agent error diagnostics even when aggregate paper health is false.
-   if(Array.isArray(report.agents))latestAgentDiagnostics=report;
+   try{
+    const report=await diagResult.value.json();
+    // Diagnostics are supplemental: malformed response must not hide a healthy paper wallet.
+    if(Array.isArray(report.agents))latestAgentDiagnostics=report;
+   }catch(error){console.warn('Diagnóstico indisponível:',String(error.message||error));}
   }
   if(paperResult.status!=='fulfilled'||!paperResult.value.ok)throw Error('Carteira indisponível');
   renderPaper(await paperResult.value.json());
