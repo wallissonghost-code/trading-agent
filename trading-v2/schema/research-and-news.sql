@@ -24,7 +24,7 @@ create table if not exists public.trading_research_news (
  related_symbols text[] not null default '{}',
  context_category text not null,
  primary key(portfolio_id,source,url),
- constraint news_url_safe check(url ~ '^https://[^[:space:]]{5,1024}$')
+ constraint news_url_safe check(char_length(url) between 14 and 1024 and url like 'https://%' and url !~ '[[:space:]]')
 );
 create index if not exists trading_research_news_recent_idx on public.trading_research_news(portfolio_id,published_at desc);
 alter table public.trading_research_news enable row level security;
