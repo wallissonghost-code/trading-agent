@@ -9,6 +9,7 @@ import { runStrategyLab } from './strategy-lab.js';
 import { getMultiweekHistory } from './historical-market.js';
 import { runWalkForward } from './walk-forward.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
+import { evaluateHeadlineImpact, summarizeHeadlineImpacts } from './news-impact.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -161,6 +162,47 @@ async function getNewsResearch(){
  try{return await newsPromise;}
  finally{newsPromise=null;}
 }
+// Demand-driven, read-only outcome study. It never feeds paper trading decisions.
+let impactState={status:'idle',completed:0,total:3,generatedAt:null,results:[],pending:0};
+let impactLastRun=0,impactJob=null;
+function getNewsImpactStatus(){
+ if((impactState.status==='idle'||impactState.status==='ready'&&Date.now()-impactLastRun>20*60*1000||
+     impactState.status==='error'&&Date.now()-impactLastRun>5*60*1000)&&!impactJob){
+   impactLastRun=Date.now();
+   impactState={status:'running',completed:0,total:3,generatedAt:null,results:[],pending:0};
+   impactJob=(async()=>{
+    const context=await getNewsResearch();
+    const archived=paperStore?.listNews?await paperStore.listNews({limit:50}):context.news||[];
+    const studies=await Promise.all(SYMBOLS.map(async symbol=>{
+     try{
+      const recent=await getKlines(symbol,{limit:1000});
+      const selected=archived.filter(n=>n.relatedSymbols?.includes(symbol)||n.category==='MACRO');
+      const results=selected.map(n=>evaluateHeadlineImpact(n,recent.candles,{symbol})).filter(x=>x.status==='evaluated');
+      const pending=selected.filter(n=>{
+       const seen=Date.parse(n.firstSeenAt||n.fetchedAt);
+       return Number.isFinite(seen)&&Date.now()-seen<70*60000;
+      }).length;
+      if(results.length&&paperStore?.saveNewsOutcomes)await paperStore.saveNewsOutcomes(results);
+      return {symbol,ok:true,evaluated:results.length,pending};
+     }catch(error){
+      console.error('News impact research failed:',symbol,String(error.message||error).slice(0,125));
+      return {symbol,ok:false,evaluated:0,pending:0};
+     }finally{impactState.completed++;}
+    }));
+    const recorded=paperStore?.listNewsOutcomes?await paperStore.listNewsOutcomes({limit:150}):[];
+    impactState={status:'ready',completed:3,total:3,
+      generatedAt:new Date().toISOString(),results:studies,pending:studies.reduce((n,r)=>n+r.pending,0),
+      ...summarizeHeadlineImpacts(recorded),persistent:Boolean(paperStore?.listNewsOutcomes),
+      newsSources:context.sourceStatus||[]};
+   })().catch(error=>{
+    console.error('News impact aggregation error:',String(error.message||error).slice(0,130));
+    impactState={status:'error',completed:impactState.completed,total:3,
+      error:'Falha ao validar resultados após a observação',results:[],pending:0};
+   }).finally(()=>{impactJob=null;});
+ }
+ return {ok:impactState.status!=='error',mode:'NEWS_RESEARCH_ONLY',newsTradingEnabled:false,
+  autoPromotionEnabled:false,orderExecutionEnabled:false,...impactState};
+}
 const server=http.createServer(async(req,res)=>{
 const path=new URL(req.url||'/', 'http://localhost').pathname;
 if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'allow':'GET, HEAD'});return res.end();}
@@ -192,6 +234,7 @@ else if(path==='/api/performance'){
 }
 else if(path==='/api/walk-forward')data=await getForwardStudy();
 else if(path==='/api/news-research')data=await getNewsResearch();
+else if(path==='/api/news-impact')data=getNewsImpactStatus();
 else if(path==='/api/strategy-lab'){
   data=await getStrategyLabReport();
 }
