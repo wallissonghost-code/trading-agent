@@ -287,3 +287,29 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 **Segurança operacional:** não foi gerada credencial administrativa nem definida `ADMIN_REVIEW_TOKEN` no Render. Por padrão, a rota de administração permanece indisponível; não publicar o segredo no frontend/GitHub/URLs. Para uso futuro, gerar segredo forte e instalar somente no servidor, preferencialmente com autenticação multiusuário e auditoria durável. Não há desbloqueio, liquidação, ordens reais ou autorização financeira.
 
 **Verificação de deploy:** checar o commit de produção mais recente após essas alterações. O CI da versão testada passou; resultado de deploy deve ser reportado separadamente.
+
+
+## 19. Supabase audit e custo Render — 24/11/2026
+
+**Solicitação:** avançar com trilha persistente de acesso administrativo e pesquisar custo para os robôs rodarem automaticamente. **Nenhuma compra/upgrade foi autorizada ou feita**.
+
+**Banco Supabase (projeto `trading-agent`, ref `ieaqsfotzsnwjqtppgfd`)**
+- Arquivos SQL versionados: `trading-v2/sql/admin-audit-schema.sql` (`ba76f02`) e `trading-v2/sql/admin-audit-log-route.sql` (`59037e4`).
+- Migrações reais aplicadas com sucesso: `trading_admin_access_audit_20261124`, `trading_admin_audit_log_route_20261124`.
+- Nova tabela `public.trading_admin_access_audit`: `id`, `portfolio_id`, `event_type`, `outcome`, `route`, `occurred_at`; sem tokens, IP, posições ou PnL.
+- RLS ativa, sem políticas para `anon`/`authenticated`; privilégios públicos explicitamente revogados. `service_role` pode `SELECT`/`INSERT` mas não `UPDATE`/`DELETE`; gatilhos bloqueiam UPDATE, DELETE e TRUNCATE. Não descrever como criptograficamente inviolável, pois administradores privilegiados continuam controlando a base.
+- Verificação SQL confirmou `anon_read=false`, `authenticated_read=false`, `service_insert=true`, `service_read=true`, `service_update=false`, `service_delete=false`, e gatilhos habilitados. O advisor Supabase sinalizou `rls_enabled_no_policy` (INFO); intencional para tabela exclusivamente de serviço, link https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy .
+- `trading-v2/supabase-store.js` (`205f882`): `appendAdminReviewAccess` e `listAdminReviewAccess` restritos ao backend.
+- `trading-v2/server.js` (`de2f680`): grava tentativa administrativa no Supabase. Mesmo com token correto, `/api/admin/gap-review` devolve HTTP 503 caso a gravação durável falhe; nova rota protegida `GET /api/admin/audit-log` consulta últimos eventos após registrar sua própria autorização. Credencial de admin `ADMIN_REVIEW_TOKEN` permanece **não configurada**.
+- Testes novos de fail-closed sem persistência em `7107239`, de adaptador em `5b24766`; um CI intermediário falhou antes do ajuste de expectativa, corrigido depois. Workflow run `45494262385` passou **171 de 171 testes**. Link https://github.com/wallissonghost-code/trading-agent/actions/runs/45494262385 .
+- Documentação completa em `trading-v2/README.md` (commit `6190ccb`).
+
+**Render e preços checados em 24/11/2026**
+- Serviço existente: `trading-agent`, workspace autorizado `My Workspace`, **plano de instância `free`** (não houve mudança).
+- O `free` hiberna depois de **15 minutos sem tráfego**; ciclos de trading paper em memória ficam suspensos.
+- Render Web Service Starter (ID atual `0.5c-512mb`, nome legado `starter`): **US$ 7/mês** por 1 instância, **0,5 CPU e 512 MB RAM**, não hiberna por inatividade. Cobrança proporcional por segundo do plano de compute; custos adicionais de banda/serviços/impostos podem existir. Plano do workspace separado do de compute. Fontes: https://render.com/pricing https://render.com/docs/free https://render.com/docs/compute-plans .
+- Memória observada nas amostras do serviço pelo Render foi inferior a aproximadamente **170 MB**, sugerindo que 512 MB pode bastar inicialmente; CPU/carga e continuidade real precisam ser medidas em execução prolongada.
+- Referência cambial de 24/11/2026 BCB PTAX ~R$ 5,857 por dólar indica base de cerca de **R$ 41/mês** antes de IOF, spread ou taxas e variação cambial; é estimativa, não cobrança confirmada.
+- Não contratar sem autorização expressa para o valor e aceitar que Starter evita idle sleep, mas não garante 100% de uptime.
+
+**Próxima etapa:** validar último deploy e saúde dos dados; decidir upgrade somente se o usuário autorizar o custo explicitamente. Implementar eventual painel administrativo com autenticação multiusuário e auditoria transacional antes de qualquer ação de mutação.
