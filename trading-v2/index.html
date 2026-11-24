@@ -443,17 +443,13 @@ function renderGapReconciliation(){
   MARKET_DATA_UNAVAILABLE:'Binance indisponível'};
  const trigger={STOP_TOUCHED:'possível toque no stop',TAKE_TOUCHED:'possível toque no alvo',
   BOTH_IN_SAME_CANDLE:'stop e alvo tocados na mesma vela; sequência desconhecida'};
- const cases=latestGapReview.administrativeReview?.cases||[];
- const reviewLabels={MANUAL_REVIEW_READY:'evidências reunidas para revisão humana',EVIDENCE_INCOMPLETE:'revisão bloqueada por dados insuficientes',AMBIGUOUS_MANUAL_REVIEW:'sequência dos preços ambígua'};
  const items=latestGapReview.symbols.filter(s=>s.locked).map(s=>{
   const detail=labels[s.status]||'auditoria inconclusiva';
   const touch=trigger[s.firstPossibleTrigger?.classification];
-  const review=cases.find(c=>c.symbol===s.symbol);
   return s.symbol+': '+detail+(touch?' • '+touch:'')+
-   (Number.isFinite(s.candlesMissing)?' • '+s.candlesMissing+' candles ainda ausentes':'')+
-   (review?' • '+(reviewLabels[review.state]||'aguardando revisão')+' • dossiê '+review.caseId:'');
+   (Number.isFinite(s.candlesMissing)?' • '+s.candlesMissing+' candles ainda ausentes':'');
  });
- el.textContent='Reconciliação somente leitura: '+items.join(' | ')+'. Dossiê identificado por hash das evidências. Aprovação administrativa indisponível: requer autenticação e auditoria separadas. Nenhuma ordem gerada e nenhuma posição desbloqueada.';
+ el.textContent='Reconciliação somente leitura: '+items.join(' | ')+'. Dossiês detalhados restritos ao acesso administrativo do servidor. Aprovação administrativa indisponível: requer autenticação e auditoria separadas. Nenhuma ordem gerada e nenhuma posição desbloqueada.';
 }
 async function refreshGapReconciliation(){
  if(gapReviewPending||Date.now()-gapReviewCheckedAt<120000)return;
