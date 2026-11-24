@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildForwardObservation,summarizeForwardStudy,FORWARD_VERSION,verifyFrozenForwardConfig,SHADOW_VERSION,verifyShadowStudy,buildShadowObservation,summarizeShadowTrades} from './forward-study.js';
+import {buildForwardObservation,summarizeForwardStudy,FORWARD_VERSION,verifyFrozenForwardConfig,SHADOW_VERSION,verifyShadowStudy,buildShadowObservation,summarizeShadowTrades,summarizeShadowRisk} from './forward-study.js';
 import {FILTER_SCENARIOS} from './entry-filter-research.js';
 const BASE=1793000000000;
 function history(n=100){let p=100;return Array.from({length:n},(_,i)=>{const open=p;const close=p*(1+.0002+Math.sin(i/21)*.0012);p=close;return {
@@ -75,4 +75,36 @@ test('shadow study fails if any execution risk or filter parameters drift',()=>{
  assert.equal(out.bySymbol.BTCUSDT.scenarios.reference.totalRealizedPnlUsd,12);
  assert.equal(out.bySymbol.BTCUSDT.scenarios.reference.approved,false);
  assert.equal(out.orderExecutionEnabled,false);
+});
+
+test('realized shadow risk computes drawdown chronologically and does not fabricate profit factor',()=>{
+ const trade=(pnl,t)=>({status:'CLOSED',realized_pnl_usd:pnl,net_return_pct:pnl/50,
+   entry_candle_open_time:t-300000,exit_candle_close_time:t});
+ const first=1790000300000,records=[trade(-40,first+300000),trade(20,first),trade(50,first+600000)];
+ const stats=summarizeShadowRisk(records);
+ assert.equal(stats.trades,3);
+ assert.equal(stats.netRealizedUsd,30);
+ assert.equal(stats.winRatePct,66.6667);
+ assert.equal(stats.profitFactor,1.75);
+ assert.equal(stats.maxRealizedDrawdownUsd,40);
+ assert.ok(stats.maxRealizedDrawdownPct>0);
+ assert.equal(stats.approved,false);
+ const onlyWins=summarizeShadowRisk([trade(20,first)]);
+ assert.equal(onlyWins.profitFactor,null);
+ assert.equal(onlyWins.profitFactorDefined,false);
+ const zero=summarizeShadowRisk([]);
+ assert.equal(zero.averageNetReturnOnPositionPct,null);
+ assert.equal(zero.winRatePct,null);
+ assert.equal(zero.maxRealizedDrawdownUsd,0);
+});
+test('invalidated trades and open trades never distort realized risk statistics',()=>{
+ const closed={symbol:'BTCUSDT',scenario:'reference',status:'CLOSED',realized_pnl_usd:-12,
+  net_return_pct:-.3,entry_candle_open_time:1790000000000,exit_candle_close_time:1790000300000};
+ const invalidated={...closed,status:'INVALIDATED',realized_pnl_usd:null,net_return_pct:null};
+ const open={...closed,status:'OPEN',realized_pnl_usd:null,net_return_pct:null};
+ const stats=summarizeShadowRisk([invalidated,closed,open]);
+ assert.equal(stats.trades,1);
+ assert.equal(stats.netRealizedUsd,-12);
+ assert.equal(stats.profitFactor,0);
+ assert.equal(stats.maxRealizedDrawdownUsd,12);
 });
