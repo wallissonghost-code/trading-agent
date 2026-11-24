@@ -70,3 +70,14 @@ test('robot health cards remain in main mobile dashboard and never trigger excha
  assert.match(code,/if\(selected==='painel'\)\{void sync\(\);void refreshMonitorHealth\(\);\}/);
  assert.doesNotThrow(()=>new Function(code));
 });
+
+test('incident timeline is collapsed inside main panel and is a separate read-only fetch',()=>{
+ const panel=html.slice(html.indexOf('id="view-painel"'),html.indexOf('id="view-operacoes"'));
+ assert.match(panel,/id="monitorAlertsPanel"/);
+ assert.match(panel,/id="monitorAlertsRows"/);
+ assert.match(panel,/id="refreshMonitorAlerts"/);
+ const code=html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+ assert.match(code,/fetch\('\/api\/monitor-alerts'/);
+ assert.match(code,/if\(activeWorkspace==='painel'&&\$\('monitorAlertsPanel'\)\.open\)/);
+ assert.doesNotThrow(()=>new Function(code));
+});
