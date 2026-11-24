@@ -22,6 +22,7 @@ import { comparePreSignalHypotheses } from './hypothesis-screen.js';
 import { buildScreenObservation, verifyScreenStudy, summarizeScreenStudy } from './prospective-screens.js';
 import { explainResearchRisk } from './research-risk.js';
 import { summarizeObservedCoverage, buildObservedTimeline } from './monitor-coverage.js';
+import { summarizePaperEvidence } from './paper-evidence.js';
 import { auditWalkForwardReports } from './research-audit.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
 import { evaluateHeadlineImpact, summarizeHeadlineImpacts } from './news-impact.js';
@@ -592,6 +593,10 @@ else if(path==='/api/performance'){
 else if(path==='/api/research-risk')data=await getResearchRiskDiagnostics();
 else if(path==='/api/monitor-timeline')data=await getMonitoringTimeline();
 else if(path==='/api/monitor-coverage')data=await getMonitoringCoverage();
+else if(path==='/api/paper-evidence'){
+ const [timeline,coverage]=await Promise.all([getMonitoringTimeline(),getMonitoringCoverage()]);
+ data=summarizePaperEvidence({paper:paper.status(),timeline,coverage,now:Date.now()});
+}
 else if(path==='/api/monitor-alerts')data=await getMonitoringAlerts();
 else if(path==='/api/monitor-health')data=await getMonitoringHealth();
 else if(path==='/api/prospective-screens')data=await getProspectiveScreenReport();
