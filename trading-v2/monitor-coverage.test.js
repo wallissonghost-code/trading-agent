@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {summarizeObservedCoverage,COVERAGE_WINDOW_MS,SLOT_MS} from './monitor-coverage.js';
+import {summarizeObservedCoverage,buildObservedTimeline,COVERAGE_WINDOW_MS,SLOT_MS} from './monitor-coverage.js';
 const NOW=1800000000000;
 const end=Math.floor(NOW/SLOT_MS)*SLOT_MS-1;
 const make=(symbol,offset=0)=>({symbol,candle_close_time:end-offset*SLOT_MS});
@@ -27,4 +27,30 @@ test('issues and recovery counts remain detection counts, not exact outage durat
  assert.equal(x.bySymbol.ETHUSDT.recoveryEvents,1);
  assert.equal(x.bySymbol.ETHUSDT.currentObservedState,'MONITORING');
  assert.equal(x.bySymbol.ETHUSDT.sufficientForTrueUptime,false);
+});
+
+test('24h timeline has 24 exactly bounded hourly bins and no false outage claims',()=>{
+ const timeline=buildObservedTimeline({now:NOW,observations:[
+  make('BTCUSDT'),make('BTCUSDT',1),make('BTCUSDT',1),make('BTCUSDT',288),
+  make('ETHUSDT',0)
+ ]});
+ assert.equal(timeline.bucketsPerMarket,24);
+ assert.equal(timeline.slotsPerMarket,288);
+ assert.equal(timeline.bySymbol.BTCUSDT.recorded,2);
+ assert.equal(timeline.bySymbol.BTCUSDT.unobserved,286);
+ assert.equal(timeline.bySymbol.BTCUSDT.timeline.length,24);
+ assert.equal(timeline.bySymbol.BTCUSDT.timeline.at(-1).recorded,2);
+ assert.equal(timeline.bySymbol.SOLUSDT.timeline[0].state,'UNOBSERVED');
+ assert.match(timeline.distinction,/UNKNOWN, not a proven outage/);
+ assert.equal(timeline.orderExecutionEnabled,false);
+});
+test('timeline marks incident at detection time but does not infer issue start',()=>{
+ const detected=new Date(end-4000).toISOString();
+ const t=buildObservedTimeline({now:NOW,
+  observations:[make('BTCUSDT')],
+  events:[{symbol:'BTCUSDT',kind:'ISSUE_STARTED',recorded_at:detected},
+   {symbol:'SOLUSDT',kind:'RECOVERED',recorded_at:new Date(end+90000).toISOString()}]});
+ assert.equal(t.bySymbol.BTCUSDT.detectedIncidents,1);
+ assert.equal(t.bySymbol.BTCUSDT.timeline.at(-1).events.length,1);
+ assert.equal(t.bySymbol.SOLUSDT.detectedIncidents,0);
 });
