@@ -149,3 +149,24 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 **Status de entrega**: código do diagnóstico integrado, documentação e testes no CI aprovados; **validação de produção ainda pendente**, especialmente serviço Render e diagnóstico em tempo real do NOVA. Não chamar o produto de “100% pronto em produção” sem essas evidências.
 
 **Próxima ação obrigatória**: após o usuário confirmar o workspace Render correto, consultar serviço, deploys e logs; testar `/health`, `/api/paper` e `/api/agent-diagnostics` na URL real; validar armazenamento e coletor. Somente depois declarar deploy operacional.
+
+
+## 12. Render e Supabase verificados — 24/11/2026
+
+**Workspace autorizado:** Render `My Workspace` (confirmado pelo usuário). Serviço: `trading-agent`, ID `srv-dc28e4uc6qcc73eq0940`, URL `https://trading-agent-4d0a.onrender.com`, repo `wallissonghost-code/trading-agent`, branch `trading-agent-v2`, **plano free**, `autoDeploy=yes`. Não foram contratados serviços pagos nem habilitadas ordens reais.
+
+**Deploy comprovado:** `195081963d0ae32ee1f94971edd8c53ce3600a80` foi listado como `live` no Render (deploy `dep-dc2qsvh5vhsc738eb560`); logs: Node iniciou em porta 10000, `Paper storage selected: supabase`, `Paper storage initialized: supabase`, e banner `Your service is live`. Build registrou 136 testes passando, sem falhas.
+
+**Supabase identificado:** projeto `trading-agent`, ref `ieaqsfotzsnwjqtppgfd`, ACTIVE_HEALTHY. Na consulta, banco tinha 1 carteira paper, 457 decisões persistidas (153 BTC, 152 ETH, 152 SOL), 14 registros no ledger, 71 candles prospectivos e 3 estados de monitoramento. Conferir contagem novamente antes de reportar valores atuais.
+
+**NOVA, causa comprovada de WAIT:** último snapshot pesquisado em `2026-11-24T15:50:07.917Z` mostrou `ETHUSDT` ação `WAIT`, motivo `EMA_TREND_NOT_BULLISH`, EMA 9 = 1680,6478, EMA 21 = 1685,3344, RSI14 = 43,3230, sem posição aberta. A base mostra ao menos 1 entrada virtual `BUY` histórica em ETHUSDT: **o NOVA operou no passado**, mas aguardou na decisão analisada. Não prometer sinais futuros nem ajustar estratégia para forçar entradas.
+
+**Frescura dos dados:** em `2026-11-24T16:39:48Z`, o último estado paper gravado era `2026-11-24T15:50:07Z`: **49,7 minutos** de atraso. Candles prospectivos e monitoramento também tinham últimos registros perto de 15:50 UTC. Isso demonstra interrupção da coleta recente; é compatível com o spin-down gratuito do Render, mas não comprova sozinho o motivo exato. O plano gratuito suspende web services após 15 minutos sem tráfego recebido (docs Render: https://render.com/docs/free). Não há garantia de pesquisa contínua 24/7 no plano free; não contornar essa limitação com pings artificiais.
+
+**Alteração corretiva:** commit `4f68365493708b6f56520ee84e326f162de19a44` alterou `trading-v2/index.html`: modo de papel não diz mais `PAPER ONLINE` se algum robô indicar erro, sem dados ou coleta atrasada; se status não vier, mostra `STATUS NÃO VERIFICADO`. Workflow GitHub Actions desse commit teve `success`, com validação de sintaxe e suíte de testes.
+
+**Documentação:** commit `9eaba4d3558611cd04510d3aaf7be88cae9931a4` esclareceu no README a hibernação do plano free e o limite de persistência versus continuidade de coleta.
+
+**Limitações dos métodos:** acesso HTTP direto aos endpoints públicos falhou no ambiente de consulta (ferramenta web sem acesso ao endereço e execução local sem DNS); a verificação equivalente contou com status real do Render, logs de inicialização, CI e consultas SQL de dados persistidos. Não declarar resultado de requisição HTTP externa que não foi obtido. API HTTP é exercitada em testes automatizados.
+
+**Próximas verificações:** conferir status final dos deploys `4f683654` e `9eaba4d` e sucesso do CI correspondente; checar se os candles retornaram após novo deploy; antes de qualquer afirmação 24/7, decidir infraestrutura apropriada com consentimento explícito sobre eventuais custos. Priorizar resolução de falhas comprovadas, sem forçar operações ou alterar risco.
