@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp,rm } from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import { createAccount,snapshot,processCandle,saveAccount,loadAccount,createPaperRunner } from './paper.js';
+import { createAccount,snapshot,processCandle,saveAccount,loadAccount,createPaperRunner,classifyPaperEntryBlock } from './paper.js';
 import {generateMockCandles} from './engine.js';
 function candles(base=100,end=Date.now()-300000){
  const rows=generateMockCandles(base,60);
@@ -132,4 +132,14 @@ test('paper decision reports risk and trend gates without changing the existing 
  assert.equal(typeof d.entryGates.positionSlotsAvailable,'boolean');
  assert.ok(['EMA_TREND_NOT_BULLISH','RSI_OUTSIDE_BUY_RANGE','MAX_OPEN_POSITIONS','CAPITAL_OR_RISK_LIMIT','EMA_RSI_WATCH_LONG','NO_NEW_ENTRY'].includes(d.reason));
  assert.equal(d.simulated,true);
+});
+
+
+test('paper exposure diagnostic distinguishes an exhausted 50% limit without placing orders',()=>{
+ assert.equal(classifyPaperEntryBlock({exposureBudget:0}),'PORTFOLIO_EXPOSURE_LIMIT');
+ assert.equal(classifyPaperEntryBlock({exposureBudget:9.99}),'PORTFOLIO_EXPOSURE_LIMIT');
+ assert.equal(classifyPaperEntryBlock({exposureBudget:30}),'CAPITAL_OR_RISK_LIMIT');
+ const account=createAccount();
+ assert.deepEqual(account.trades,[]);
+ assert.deepEqual(account.positions,{});
 });
