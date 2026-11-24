@@ -13,6 +13,7 @@ import { compareCooldowns } from './cooldown-research.js';
 import { compareEntryFilters } from './entry-filter-research.js';
 import { buildForwardObservation, summarizeForwardStudy, verifyFrozenForwardConfig, buildShadowObservation, verifyShadowStudy, summarizeShadowTrades } from './forward-study.js';
 import { summarizeMonitoring } from './monitor-health.js';
+import { explainResearchRisk } from './research-risk.js';
 import { summarizeObservedCoverage, buildObservedTimeline } from './monitor-coverage.js';
 import { auditWalkForwardReports } from './research-audit.js';
 import { fetchNewsHeadlines } from './news-monitor.js';
@@ -311,6 +312,30 @@ async function syncMonitoringIncidents(){
   return {ok:false,error:'Monitor incidents write unavailable'};
  }finally{monitoringSyncPromise=null;}
 }
+// Informational signal diagnostics; not connected to the paper engine.
+let researchRiskCache=null,researchRiskUntil=0,researchRiskPromise=null;
+async function getResearchRiskDiagnostics(){
+ if(researchRiskCache&&Date.now()<researchRiskUntil)return researchRiskCache;
+ if(researchRiskPromise)return researchRiskPromise;
+ researchRiskPromise=(async()=>{
+  const results=await Promise.all(SYMBOLS.map(async symbol=>{
+   try{
+    const data=await getKlines(symbol,{limit:110});
+    return {ok:true,...explainResearchRisk(data.candles,{symbol})};
+   }catch(error){
+    console.error('Risk diagnostics:',symbol,String(error.message||error).slice(0,120));
+    return {ok:false,symbol,error:'Indicadores indisponíveis',dataFresh:false};
+   }
+  }));
+  const report={ok:true,mode:'EXPLANATORY_RESEARCH_ONLY',generatedAt:new Date().toISOString(),
+   results,successfulMarkets:results.filter(x=>x.ok).length,
+   realOrdersEnabled:false,autoPromotionEnabled:false,
+   notice:'Indicators are descriptive, not trading approvals. Frozen studies and paper portfolio are unchanged.'};
+  researchRiskCache=report;researchRiskUntil=Date.now()+60000;
+  return report;
+ })();
+ try{return await researchRiskPromise;}finally{researchRiskPromise=null;}
+}
 async function getMonitoringTimeline(){
  if(!paperStore?.listTimelineObservations||!paperStore?.listMonitoringEvents)
   return {ok:false,mode:'OBSERVED_24H_TIMELINE',error:'Linha do tempo não configurada'};
@@ -429,6 +454,7 @@ else if(path==='/api/performance'){
     data={ok:true,...summary,partialHistory:recent.length===100,historyLimit:100};
   }catch(err){data={ok:false,error:'Estatísticas indisponíveis',mode:'PAPER_ONLY'};console.error('Performance read error:',String(err.message||err).slice(0,130));}
 }
+else if(path==='/api/research-risk')data=await getResearchRiskDiagnostics();
 else if(path==='/api/monitor-timeline')data=await getMonitoringTimeline();
 else if(path==='/api/monitor-coverage')data=await getMonitoringCoverage();
 else if(path==='/api/monitor-alerts')data=await getMonitoringAlerts();
