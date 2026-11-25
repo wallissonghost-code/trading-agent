@@ -94,3 +94,42 @@ test('admin audit rejects arbitrary events and fails closed on persistence error
  await assert.rejects(()=>store.appendAdminReviewAccess({outcome:'INVALID'}),/Invalid admin audit event/);
  await assert.rejects(()=>store.appendAdminReviewAccess({outcome:'AUTHORIZED',route:'arbitrary'}),/Invalid admin audit event/);
 });
+
+
+test('paper candle is committed through one RPC, never separate portfolio and journal writes',async()=>{
+ const requests=[];
+ const store=createSupabaseStore({url:'https://example.supabase.co',key:'server-test-secret',fetchFn:async(url,opts)=>{
+  requests.push({path:url.pathname,method:opts.method,body:JSON.parse(opts.body)});
+  return {ok:true,text:async()=>JSON.stringify({ok:true,symbol:'BTCUSDT',candleCloseTime:1795563899999})};
+ }});
+ const state={schema:1,lastCandle:{BTCUSDT:1795563899999},cash:10000};
+ await store.save(state,{journal:{symbol:'BTCUSDT',previousClose:1795563599999,
+  candleCloseTime:1795563899999,action:'WAIT',reason:'DATA_GAP_POSITION_LOCK',
+  observedAt:'2026-11-24T23:45:34Z'}});
+ assert.equal(requests.length,1);
+ assert.equal(requests[0].path,'/rest/v1/rpc/trading_commit_paper_candle');
+ assert.equal(requests[0].body.p_previous_close,1795563599999);
+ assert.deepEqual(requests[0].body.p_state,state);
+});
+test('paper candle RPC failures and malformed acknowledgements fail closed',async()=>{
+ const state={schema:1,lastCandle:{BTCUSDT:1795563899999}};
+ const journal={symbol:'BTCUSDT',previousClose:null,candleCloseTime:1795563899999,
+  action:'WAIT',reason:'NO_NEW_ENTRY',observedAt:'2026-11-24T23:45:34Z'};
+ const unavailable=createSupabaseStore({url:'https://example.supabase.co',key:'secret',
+  fetchFn:async()=>({ok:false,status:409,text:async()=>'cursor conflict'})});
+ await assert.rejects(()=>unavailable.save(state,{journal}),/HTTP 409/);
+ const malformed=createSupabaseStore({url:'https://example.supabase.co',key:'secret',
+  fetchFn:async()=>({ok:true,text:async()=>JSON.stringify({ok:true,symbol:'BTCUSDT',candleCloseTime:1})})});
+ await assert.rejects(()=>malformed.save(state,{journal}),/not acknowledged/);
+ await assert.rejects(()=>malformed.save(state,{journal:{...journal,candleCloseTime:100}}),/Invalid paper candle journal payload/);
+});
+test('weekly paper report uses read-only RPC and verifies result shape',async()=>{
+ const store=createSupabaseStore({url:'https://example.supabase.co',key:'secret',
+  fetchFn:async(url,opts)=>{
+   assert.equal(url.pathname,'/rest/v1/rpc/trading_paper_journal_report');
+   assert.deepEqual(JSON.parse(opts.body),{p_portfolio:'main'});
+   return {ok:true,text:async()=>JSON.stringify({ok:true,mode:'PAPER_CANDLE_JOURNAL',markets:[],expected7d:2016})};
+  }});
+ const report=await store.reportPaperCandleJournal();
+ assert.equal(report.expected7d,2016);
+});
