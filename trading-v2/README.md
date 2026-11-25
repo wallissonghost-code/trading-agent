@@ -103,6 +103,16 @@ A rota `GET /api/paper-evidence` e a seção **Qualidade do teste dos robôs •
 
 Esta implementação é somente diagnóstica. `realOrdersEnabled=false`, `automaticPromotionEnabled=false` e `noAutoHostingUpgrade=true`. Não concede aprovação de estratégias, não compra hospedagem e não altera ordens ou os parâmetros de risco.
 
+## Diário persistente e atômico dos candles paper (24h / 7 dias)
+
+O esquema versionado em `sql/paper-candle-journal.sql` cria `public.trading_paper_candle_journal` e duas funções **somente de serviço** no Supabase:
+
+- `trading_commit_paper_candle`: cada vez que o motor processa um novo candle de 5 minutos, a **atualização da carteira e o registro do candle ocorrem na mesma transação PostgreSQL**, com verificação do cursor anterior. Em conflitos de cursor, duplicações ou falhas do banco, a transação falha e o runner volta ao estado anterior e interrompe operações para não inventar resultados. Os registros são identificados por carteira, ativo e fechamento do candle; contêm ação e motivo paper, hora observada e hora do commit. Não contêm credenciais, não criam ordens reais e não inferem execuções durante hibernação.
+- `trading_paper_journal_report`: fornece o número de candles realmente confirmados pelo motor paper nas **últimas 24h (288 esperados por ativo)** e **últimos 7 dias (2016 esperados por ativo)**, com as datas dos registros. É exclusivamente leitura, acessível no backend pela rota `GET /api/paper-journal`; seu resumo aparece no painel de **Qualidade do teste dos robôs • PAPER**, separado da cobertura dos estudos shadow.
+- A tabela tem RLS habilitada; acessos `anon` e `authenticated` comuns revogados. `service_role` recebe apenas `SELECT` e `INSERT` e as funções necessárias. UPDATE, DELETE e TRUNCATE são protegidos por triggers; administradores privilegiados continuam capazes de modificar o banco e portanto não há garantia de inviolabilidade absoluta.
+
+**A contagem só começa quando o código novo passa a executar na instância ativa**. Não há preenchimento retroativo; 0 registros antes da publicação não é indisponibilidade comprovada. A cobertura de 7 dias requer observações efetivamente acumuladas, e os robôs continuam em PAPER_ONLY. O Render free pode dormir, interrompendo essa coleta; nenhuma assinatura foi criada.
+
 ## Testes
 
 `npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-agent-v2.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
