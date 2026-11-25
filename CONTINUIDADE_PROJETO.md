@@ -378,3 +378,20 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 **Documentação:** README atualizado commit `2b28857`.
 
 **Limites obrigatórios:** GitHub cron só roda na branch padrão, pode atrasar ou ser descartado, e pode ser desativado após inatividade; no Render Free, tráfego regular pode reduzir suspensão após 15 min sem requisição, mas não impede reinícios ou limites de horas. Portanto, o cron **não garante funcionamento 24/7**, candles paper efetivamente gravados devem continuar sendo auditados pelo diário persistente. O primeiro run agendado **ainda não foi confirmado**; o ambiente não conseguiu acessar a URL Render externamente para teste de ponta a ponta. Conferir GitHub Actions → Trading Agent V2 — Monitor gratuito, validar execuções reais e os primeiros candles seguintes. Nenhum custo pago autorizado.
+
+
+## 24. Auditoria de hibernação e contingência independente do GitHub — 25/11/2026
+
+O usuário solicitou **varredura completa** do monitor Render/GitHub e continuidade paper, sem custos/negociação real.
+
+**Evidências:**
+- Workflow `.github/workflows/trading-agent-health-monitor.yml` está na branch padrão `trading-agent-v2`, com `schedule` a cada 10 minutos, `workflow_dispatch` e `push` apenas para alterações no arquivo. Duas execuções **push** tiveram sucesso (GitHub runs `45602331033`, `45602629722`), porém **nenhuma com evento `schedule`** entre os registros recuperados até aproximadamente 09h36 BRT. Portanto, testes comprovam que o código e o endpoint estão corretos; o agendamento periódico via GitHub **não estava comprovado**. Documentação oficial informa que eventos scheduled podem atrasar/ser descartados sob carga; motivo específico desta conta ainda não demonstrado. NÃO afirmar GitHub cron funcionando.
+- Serviço Render `srv-dc28e4uc6qcc73eq0940`: plano `free`, eventos de deploy mais recentes `succeeded`, sem evidência direta de falha de publicação. Hibernação gratuita é risco estrutural.
+- Supabase `ieaqsfotzsnwjqtppgfd`: às 09h36 BRT, contagem real `ALPHA=9 / NOVA=8 / ORION=8`; gap de até 82 candles (410 min) entre candles consecutivos registrados no diário. A ausência de candles comprova lacunas da **coleta paper**, não a causa ou uptime exato do Render. BTC permanece `gapLocks.BTCUSDT=true`, sem unlock/reset.
+- Infraestrutura Supabase já possui `pg_cron 1.6.4` e `pg_net 0.20.4`; nenhum job cron anterior. Teste HTTP pela própria extensão `net.http_get('/health')` recebeu `HTTP 200`, `ok=true`, `name=trading-agent`, `mode=SIMULATION_ONLY`, `uptimeSeconds=4` (request id **46**, 12:36:59Z).
+- Foi instalado novo **cron próprio e independente do GitHub**, id **3**, `jobname='trading-agent-render-health-10m'`, expressão `7,17,27,37,47,57 * * * *` UTC, `active=true`, somente GET no Render sem segredos. Origem versionada no repo `trading-v2/sql/render-health-cron.sql`, commit `850409e`. README atualizado commit `990706d`.
+- A consulta após instalar revelou `cron.job_run_details` **ainda vazio** e a próxima execução estava para uma janela futura. **A configuração do job está ativa, porém seu disparo automático e o resultado HTTP periódico ainda não estão comprovados** até a próxima consulta. O monitor horário ChatGPT foi atualizado com sucesso para consultar `cron.job`, `cron.job_run_details`, `net._http_response` e os candles paper, alertando na ausência de run ou resposta.
+- Após teste manual HTTP, o diário avançou para `ALPHA=10, NOVA=9, ORION=9` em 12:37Z; não houve backfill.
+- Sem mudanças de estratégias, carteira, permissões, plano Render ou operações reais. O novo cron é gratuito dentro da infraestrutura preexistente, mas sujeito a cotas/limites do plano e não oferece SLA.
+
+**Próxima verificação crítica:** confirmar `cron.job_run_details.status` da primeira execução real do job 3, correlacionar o `net._http_response.status_code=200` e conferir crescimento de `trading_paper_candle_journal` nas velas seguintes. Se falhar, investigar launcher e pg_net; não declarar solução comprovadamente contínua antes disso.
