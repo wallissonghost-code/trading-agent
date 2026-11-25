@@ -395,3 +395,16 @@ O usuário solicitou **varredura completa** do monitor Render/GitHub e continuid
 - Sem mudanças de estratégias, carteira, permissões, plano Render ou operações reais. O novo cron é gratuito dentro da infraestrutura preexistente, mas sujeito a cotas/limites do plano e não oferece SLA.
 
 **Próxima verificação crítica:** confirmar `cron.job_run_details.status` da primeira execução real do job 3, correlacionar o `net._http_response.status_code=200` e conferir crescimento de `trading_paper_candle_journal` nas velas seguintes. Se falhar, investigar launcher e pg_net; não declarar solução comprovadamente contínua antes disso.
+
+
+## 24. Supabase cron efetivamente executado — 25/11/2026 às 10h05 BRT
+
+Verificação após instalação da contingência de monitoramento (tarefa `cron.job` ID 3, nome `trading-agent-render-health-10m`). A consulta direta ao banco retornou:
+- Cron ativo com schedule `7,17,27,37,47,57 * * * *` GMT. `cron.job_run_details` registrou execução automática `succeeded` às **12:47Z (09:47 BRT)** e **12:57Z (09:57 BRT)**.
+- `net._http_response` registrou respostas **HTTP 200** de verdade para ambas as requisições (`id=47` e `id=48`), sem erro ou timeout; o JSON indicou `ok:true`, `name:trading-agent`, `mode:SIMULATION_ONLY`. Uma terceira resposta HTTP 200 (`id=46`) tinha sido obtida em teste direto às 12:36Z. Portanto, **a execução agendada do Supabase está comprovada**. Não é necessário reiniciar o Render para validar.
+- Diário do motor paper às 13:05Z: **ALPHA 16**, **NOVA 15**, **ORION 15** candles com salvamento atômico; `trading_paper_states.updated_at=2026-11-25T13:05:08Z`, `lastError={}`, `gapLocks={BTCUSDT:true}` preservado. Nenhuma operação real, alteração manual de carteira ou custo pago.
+- Auditoria de continuidade do diário registrou **duas descontinuidades** por símbolo desde a abertura do diário, somando **94 slots ausentes BTC** e **95 slots ausentes ETH e SOL** entre registros. Essas lacunas são históricas, não comprovação de downtime contínuo; **não preencher retroativamente**.
+- Workflow GitHub Actions continua com 2 execuções `push` aprovadas e nenhuma `schedule` confirmada no levantamento até 13:05Z. Supabase Cron agora é a contingência funcional de agendamento, enquanto GitHub fica como caminho adicional em observação.
+- Controles: manter Render Free, PAPER ONLY, ALPHA BTC bloqueado; observar 7 dias de journal antes de qualquer avaliação de produção.
+
+**Importante:** os pings 09:47 e 09:57 comprovam a resposta do serviço nesses instantes, **não** a disponibilidade ininterrupta, a coleta de todos os candles ou rentabilidade. As verificações futuras devem comparar diário paper e cron.job_run_details.
