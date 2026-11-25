@@ -113,6 +113,19 @@ O esquema versionado em `sql/paper-candle-journal.sql` cria `public.trading_pape
 
 **A contagem só começa quando o código novo passa a executar na instância ativa**. Não há preenchimento retroativo; 0 registros antes da publicação não é indisponibilidade comprovada. A cobertura de 7 dias requer observações efetivamente acumuladas, e os robôs continuam em PAPER_ONLY. O Render free pode dormir, interrompendo essa coleta; nenhuma assinatura foi criada.
 
+
+## Monitor gratuito externo do Render Free
+
+Workflow: `../.github/workflows/trading-agent-health-monitor.yml`.
+
+- GitHub Actions (branch padrão `trading-agent-v2`) está programado nos minutos **03, 13, 23, 33, 43 e 53 de cada hora** (UTC), aproximadamente **a cada 10 minutos**.
+- Faz requisição HTTP GET **somente leitura** à rota `https://trading-agent-4d0a.onrender.com/health`, valida JSON `ok=true`, serviço `trading-agent`, modo `SIMULATION_ONLY` e informa o sucesso/falha no histórico do GitHub Actions.
+- Não configura tokens, não altera ordens/estratégias/estado paper, não libera o bloqueio BTC/USDT e não muda o plano Render. `permissions: contents: read` e limite de execução por tarefa de quatro minutos.
+- Essa verificação pode evitar que um serviço Free durma após **15 minutos sem requisições**, mas **não garante funcionamento ininterrupto**: tarefas `schedule` do GitHub podem atrasar, ser descartadas ou desativadas; o Render pode reiniciar o serviço, limitar consumo de instância ou suspendê-lo por outras causas. Os dados do diário paper continuam sendo a evidência efetiva da continuidade; pings saudáveis não significam que candles foram gravados.
+- O primeiro `schedule` ainda precisa ser verificado na aba **Actions → Trading Agent V2 — Monitor gratuito**. A agenda também suporta `workflow_dispatch` para execução manual. Para desligar o mecanismo, desative esse workflow no GitHub ou remova o agendamento, sem tocar na carteira.
+
+A monitoria é uma ferramenta provisória de testes, não uma alternativa com SLA ao Starter. Deve-se reavaliar o uso de horas grátis e os termos da plataforma, preservando o compromisso de **nenhuma contratação paga automática**.
+
 ## Testes
 
 `npm test` executa arquivos `*.test.js` usando o test runner do Node. Um workflow de GitHub Actions está disponível em `.github/workflows/trading-agent-v2.yml`; consultar o resultado da execução, não presumir sucesso só pela existência do arquivo.
