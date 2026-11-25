@@ -6,6 +6,12 @@ on:
     # Offset from minute 00 to reduce congestion; repeats every 10 minutes (UTC).
     - cron: '3,13,23,33,43,53 * * * *'
   workflow_dispatch:
+  # A workflow-file push also verifies activation immediately, instead of waiting
+  # for an unreliable cron tick. It never runs on normal application commits.
+  push:
+    branches: [trading-agent-v2]
+    paths:
+      - '.github/workflows/trading-agent-health-monitor.yml'
 
 permissions:
   contents: read
