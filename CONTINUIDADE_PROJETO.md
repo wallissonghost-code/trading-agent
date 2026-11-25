@@ -367,3 +367,14 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 - Render `srv-dc28e4uc6qcc73eq0940` confirmou commit `f1a2e75` **live** (25/11/2026 03:59:14Z), incluindo toda lógica e UI funcional; commits posteriores são apenas testes e documentação, podem ainda estar em build.
 
 **Próximo passo:** verificar primeiros commits da tabela durante as próximas velas observadas pelo Free e usar relatório 7d para aferir consistência da coleta. Não afirmar 7 dias de evidência antes que sejam obtidos nem prometer atividade sem interrupções no Render gratuito.
+
+
+## 23. Monitor externo gratuito de inatividade Render — 25/11/2026
+
+**Pedido expresso:** configurar monitor gratuito para reduzir hibernação do serviço Render Free sem pagar, executar ordens reais ou alterar o estado paper.
+
+**Implementação:** GitHub Actions em `.github/workflows/trading-agent-health-monitor.yml`, commit `61255dd`, na branch padrão `trading-agent-v2`. Cron de 10 em 10 minutos, nos minutos 03,13,23,33,43,53 UTC, mais acionamento `workflow_dispatch`. Um job com `permissions: contents: read`, `timeout-minutes: 4`, `curl --fail` com timeout e validação JSON via `jq` acessa somente `GET https://trading-agent-4d0a.onrender.com/health`. Não há novas credenciais nem segredos de API. A rota `/health` já existia em `server.js` e não efetua ações sobre carteira/DB. Arquivo confirmado via fetch remoto após o commit.
+
+**Documentação:** README atualizado commit `2b28857`.
+
+**Limites obrigatórios:** GitHub cron só roda na branch padrão, pode atrasar ou ser descartado, e pode ser desativado após inatividade; no Render Free, tráfego regular pode reduzir suspensão após 15 min sem requisição, mas não impede reinícios ou limites de horas. Portanto, o cron **não garante funcionamento 24/7**, candles paper efetivamente gravados devem continuar sendo auditados pelo diário persistente. O primeiro run agendado **ainda não foi confirmado**; o ambiente não conseguiu acessar a URL Render externamente para teste de ponta a ponta. Conferir GitHub Actions → Trading Agent V2 — Monitor gratuito, validar execuções reais e os primeiros candles seguintes. Nenhum custo pago autorizado.
