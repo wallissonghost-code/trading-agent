@@ -114,6 +114,19 @@ O esquema versionado em `sql/paper-candle-journal.sql` cria `public.trading_pape
 **A contagem só começa quando o código novo passa a executar na instância ativa**. Não há preenchimento retroativo; 0 registros antes da publicação não é indisponibilidade comprovada. A cobertura de 7 dias requer observações efetivamente acumuladas, e os robôs continuam em PAPER_ONLY. O Render free pode dormir, interrompendo essa coleta; nenhuma assinatura foi criada.
 
 
+## Contingência independente do GitHub: Supabase Cron
+
+Em 25/11/2026 foi configurada no Supabase uma tarefa de verificação HTTP GET do Render, independentemente do GitHub Actions:
+
+- Arquivo versionado: `sql/render-health-cron.sql`. Job nomeado `trading-agent-render-health-10m`, id **3**, schedule `7,17,27,37,47,57 * * * *` (UTC, a cada 10 minutos).
+- Infraestrutura já existente: `pg_cron 1.6.4` + `pg_net 0.20.4`, sem abrir novos serviços ou habilitar execução real. Faz apenas `GET https://trading-agent-4d0a.onrender.com/health` com timeout de 30s e sem tokens.
+- Antes da ativação, o acesso manual via `net.http_get` foi confirmado com **HTTP 200**, resposta `name=trading-agent`, `mode=SIMULATION_ONLY`. Após a instalação, `cron.job` confirmou `active=true` e a expressão acima.
+- **Limite da validação:** o primeiro `cron.job_run_details` ainda não estava registrado às 09h38 BRT. Portanto, o disparo automático dessa nova tarefa não estava comprovado no momento da implantação. O `cron.job_run_details.status='succeeded'` indica êxito na execução SQL (enfileiramento da requisição), não confirma sozinho o HTTP 200. Verificar também `net._http_response`, cujo histórico tem retenção limitada.
+- Auditoria: `SELECT jobid,jobname,schedule,active FROM cron.job WHERE jobname='trading-agent-render-health-10m';` e `SELECT * FROM cron.job_run_details WHERE jobid=3 ORDER BY runid DESC LIMIT 20;`. Respostas `SELECT id,status_code,timed_out,error_msg,created FROM net._http_response ORDER BY created DESC LIMIT 30;`.
+- Reversão segura, caso necessário: `SELECT cron.unschedule('trading-agent-render-health-10m');`. Não agendar serviço pago nem reprocessar candles perdidos.
+- Monitor horário ChatGPT `Vigiar monitor do Trading Agent` foi atualizado para auditar cron e HTTP, sem operar criptomoedas.
+- O Render Free segue sujeito à hibernação por falta de tráfego, reinícios próprios e cotas. O GitHub `schedule` é best-effort e **não demonstrou execuções periódicas** até a auditoria. Nenhum desses pings comprova 24/7; a evidência do motor paper está no diário persistido.
+
 ## Monitor gratuito externo do Render Free
 
 Workflow: `../.github/workflows/trading-agent-health-monitor.yml`.
