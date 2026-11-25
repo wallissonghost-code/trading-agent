@@ -593,6 +593,17 @@ else if(path==='/api/performance'){
 else if(path==='/api/research-risk')data=await getResearchRiskDiagnostics();
 else if(path==='/api/monitor-timeline')data=await getMonitoringTimeline();
 else if(path==='/api/monitor-coverage')data=await getMonitoringCoverage();
+else if(path==='/api/paper-journal'){
+ if(!paperStore?.reportPaperCandleJournal){
+  data={ok:false,mode:'PAPER_CANDLE_JOURNAL',error:'Diário paper persistente indisponível',realOrdersEnabled:false};
+ }else{
+  try{data=await paperStore.reportPaperCandleJournal();}
+  catch(error){
+   console.error('Paper journal report unavailable:',String(error.message||error).slice(0,120));
+   data={ok:false,mode:'PAPER_CANDLE_JOURNAL',error:'Resumo do diário paper indisponível',realOrdersEnabled:false};
+  }
+ }
+}
 else if(path==='/api/paper-evidence'){
  const [timeline,coverage]=await Promise.all([getMonitoringTimeline(),getMonitoringCoverage()]);
  data=summarizePaperEvidence({paper:paper.status(),timeline,coverage,now:Date.now()});
