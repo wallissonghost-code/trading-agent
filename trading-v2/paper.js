@@ -185,7 +185,15 @@ export function createPaperRunner({path,store=null,fetchKlines=getKlines,clock=(
             const checkpoint=structuredClone(account);
             processCandle(account,symbol,candles,{now:clock().toISOString()});
             if(account.lastCandle[symbol]!==before){
-              try{await persistence.save(account);}
+              // Match each successfully persisted portfolio cursor to exactly one
+              // processed 5m paper candle in the same Supabase transaction.
+              const decision=account.lastDecisions[symbol];
+              const journal={
+                symbol,previousClose:Number.isSafeInteger(before)?before:null,
+                candleCloseTime:account.lastCandle[symbol],action:decision.action,
+                reason:decision.reason,observedAt:decision.observedAt
+              };
+              try{await persistence.save(account,{journal});}
               catch(error){account=checkpoint;storageFault=String(error.message||error).slice(0,160);throw error;}
             }
             // A market quote is visible only after a valid candle and any required durable save.
