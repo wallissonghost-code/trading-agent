@@ -343,7 +343,32 @@ export function createSupabaseStore({url=process.env.SUPABASE_URL,key=process.en
    if(state?.schema!==1||!Number.isFinite(state.cash)||state.cash<0||!state.positions||!state.lastCandle||!Array.isArray(state.trades))throw new Error('Invalid remote portfolio state');
    return state;
   },
-  async save(state){
+  async reportPaperCandleJournal(){
+   const path=new URL('/rest/v1/rpc/trading_paper_journal_report',origin);
+   const report=await request('POST',path,{p_portfolio:id});
+   if(report?.ok!==true||report.mode!=='PAPER_CANDLE_JOURNAL'||!Array.isArray(report.markets))
+    throw Error('Invalid paper journal report');
+   return report;
+  },
+  async save(state,{journal=null}={}){
+   if(journal){
+    const {symbol,previousClose,candleCloseTime,action,reason,observedAt}=journal;
+    if(!['BTCUSDT','ETHUSDT','SOLUSDT'].includes(symbol)||
+      !['BUY','SELL','WAIT'].includes(action)||typeof reason!=='string'||
+      !Number.isSafeInteger(candleCloseTime)||candleCloseTime<=0||
+      (candleCloseTime+1)%300000!==0||
+      (previousClose!==null&&!Number.isSafeInteger(previousClose))||
+      state?.lastCandle?.[symbol]!==candleCloseTime)
+      throw Error('Invalid paper candle journal payload');
+    const endpoint=new URL('/rest/v1/rpc/trading_commit_paper_candle',origin);
+    const result=await request('POST',endpoint,{
+     p_portfolio:id,p_symbol:symbol,p_previous_close:previousClose,
+     p_close:candleCloseTime,p_state:state,p_action:action,
+     p_reason:reason,p_observed_at:observedAt});
+    if(result?.ok!==true||result.symbol!==symbol||Number(result.candleCloseTime)!==candleCloseTime)
+     throw Error('Atomic paper candle commit not acknowledged');
+    return;
+   }
    const rows=await request('POST',base,{id,state,updated_at:new Date().toISOString()});
    if(!Array.isArray(rows)||rows.length!==1)throw new Error('Remote state not acknowledged');
   }
