@@ -350,3 +350,20 @@ O usuário pediu que o projeto funcione em hospedagem acessível economicamente,
 
 
 **Ocorrência de operação após deploy — 24/11/2026 23:46 UTC:** consulta ao Supabase confirmou `gapLocks.BTCUSDT=true`, `dataGaps.BTCUSDT.missedCandles=16`, detecção `2026-11-24T23:44:21.602Z`, último motivo `DATA_GAP_POSITION_LOCK`; posição virtual BTCUSDT continua intacta. A diferença entre o último candle antigo (`1795558499999`) e o candle de retomada (`1795563599999`) levou à quarentena. **Não comprova a causa da interrupção**: pode ser suspensão/redeploy/coleta. Não reconstituir trades, não alterar posições ou desbloquear; esta ocorrência reforça a necessidade de revisão histórica e instrumentação própria paper.
+
+
+## 22. Diário atômico do paper runner e cobertura verdadeira por motor — 25/11/2026
+
+**Meta:** observar candles realmente processados pelo paper runner por 24h e 7d, sem confundir com `shadow`/backtests e sem backfill artificial. Plano Render **free** mantido; ordens reais desativadas; posição paper BTC anteriormente quarentenada não foi alterada manualmente.
+
+- `trading-v2/sql/paper-candle-journal.sql` (commit `952f8af`): tabela nova `trading_paper_candle_journal`, chave `(portfolio_id,symbol,candle_close_time)`, RLS ativo, sem leitura pública, `service_role` só INSERT/SELECT, triggers para bloquear UPDATE/DELETE/TRUNCATE. **MIGRAÇÃO REAL aplicada:** `paper_candle_atomic_journal_20261125` no projeto Supabase `ieaqsfotzsnwjqtppgfd`.
+- RPC `trading_commit_paper_candle` executa, na mesma transação PostgreSQL, CAS do cursor paper `previousClose`, gravação de `trading_paper_states.state` e inserção única de candle journal. Falha de parte da transação aborta tudo. Lógica de trading e limites permanecem intactos.
+- RPC somente leitura `trading_paper_journal_report` retorna valores observados para cada mercado em 24h (288 candles esperados) e 7d (2016 esperados). Verificada diretamente com SQL: 0 registros nos 3 mercados antes do primeiro ciclo no novo código. Não extrapolar uptime da ausência de registros.
+- `trading-v2/supabase-store.js` (commit `2793383`) agora executa RPC atômico no `save(state,{journal})`; na carga inicial sem processamento conserva a gravação `save(state)` legada.
+- `trading-v2/paper.js` (commit `cbdd69b`) passa símbolo, horário do candle, cursor anterior e decisão/razão; em rejeição remota restaura estado anterior e interrompe o runner, impedindo trade sem journal.
+- `trading-v2/server.js` (commit `91df437`) expõe GET `/api/paper-journal` para relatório somente leitura. `trading-v2/index.html` (commit `933bed4`) mostra números paper 24h/7d junto dos números shadow, explicitamente distintos.
+- Testes: `trading-v2/supabase-store.test.js` (`5b07b5a`) cobre 1 só RPC atômico por candle, confirmação, validação de payload e falhas; `trading-v2/paper.test.js` (`f1a2e75`) verifica deduplicação e rollback; `trading-v2/ui.test.js` (`2be8e07`) prova labels distintos. **GitHub Actions 45543660581** aprovou **188/188**, sem falhas. https://github.com/wallissonghost-code/trading-agent/actions/runs/45543660581 .
+- `trading-v2/README.md` atualizado em `040581a`, inclui limites de evidência. A tabela foi criada vazia intencionalmente: não houve retroatividade, liquidação ou reset de carteira. A RPC de relatório foi verificada diretamente em produção com 0/288 e 0/2016 antes de uma primeira execução nova.
+- Render `srv-dc28e4uc6qcc73eq0940` confirmou commit `f1a2e75` **live** (25/11/2026 03:59:14Z), incluindo toda lógica e UI funcional; commits posteriores são apenas testes e documentação, podem ainda estar em build.
+
+**Próximo passo:** verificar primeiros commits da tabela durante as próximas velas observadas pelo Free e usar relatório 7d para aferir consistência da coleta. Não afirmar 7 dias de evidência antes que sejam obtidos nem prometer atividade sem interrupções no Render gratuito.
