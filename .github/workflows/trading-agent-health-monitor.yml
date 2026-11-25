@@ -1,0 +1,42 @@
+name: Trading Agent V2 — Monitor gratuito
+# GitHub Actions cron is best-effort: the scheduler can delay or skip runs.
+# The call is a read-only HTTP health check. It never performs trading actions.
+on:
+  schedule:
+    # Offset from minute 00 to reduce congestion; repeats every 10 minutes (UTC).
+    - cron: '3,13,23,33,43,53 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trading-agent-health-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Verificar servidor Render Free
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Consultar /health (somente leitura)
+        shell: bash
+        env:
+          HEALTH_URL: https://trading-agent-4d0a.onrender.com/health
+        run: |
+          set -euo pipefail
+          echo "Verificando saúde do Trading Agent V2..."
+          body="$(curl --fail --silent --show-error --location \
+            --connect-timeout 15 --max-time 120 \
+            --retry 1 --retry-delay 3 --retry-all-errors \
+            --header 'Accept: application/json' \
+            "$HEALTH_URL")"
+          printf '%s' "$body" | jq -e '
+            .ok == true
+            and .name == "trading-agent"
+            and .mode == "SIMULATION_ONLY"
+            and (.uptimeSeconds | type == "number")
+          ' >/dev/null
+          echo "Render respondeu: HTTP 200, serviço correto, simulação apenas."
+          echo "Esta checagem não verifica candles, persistência ou uptime contínuo."
