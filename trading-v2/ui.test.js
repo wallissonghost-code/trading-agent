@@ -83,3 +83,12 @@ test('paper test quality panel separates paper evidence from independent shadow 
  assert.match(html,/Dados shadow são contexto, não uptime do Render/);
  assert.match(html,/sem liberação real/);
 });
+
+
+test('paper quality panel distinguishes atomic paper journal from shadow observations',()=>{
+ assert.match(html,/fetch\('\/api\/paper-journal'/);
+ assert.match(html,/Gravação paper confirmada/);
+ assert.match(html,/2016 candles paper \(7 dias\)/);
+ assert.match(html,/288 candles paper \(24h\)/);
+ assert.match(html,/não recuperamos candles antigos artificialmente/i);
+});
