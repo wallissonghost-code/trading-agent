@@ -45,4 +45,21 @@ jobs:
             and (.uptimeSeconds | type == "number")
           ' >/dev/null
           echo "Render respondeu: HTTP 200, serviço correto, simulação apenas."
-          echo "Esta checagem não verifica candles, persistência ou uptime contínuo."
+          # The process may be starting after a Render Free wake. Allow a short
+          # grace period, then ensure the *paper engine* is actually ready.
+          # This is read-only and does not call trading endpoints or modify state.
+          sleep 12
+          paper="$(curl --fail --silent --show-error --location \
+            --connect-timeout 15 --max-time 45 \
+            --retry 1 --retry-delay 3 --retry-all-errors \
+            --header 'Accept: application/json' \
+            'https://trading-agent-4d0a.onrender.com/api/paper')"
+          printf '%s' "$paper" | jq -e '
+            .mode == "PAPER_ONLY"
+            and .executionEnabled == false
+            and .ready == true
+            and .persistence == "supabase"
+            and (.storageError == null)
+          ' >/dev/null
+          echo "Paper runner pronto, persistência Supabase selecionada."
+          echo "Esta checagem não comprova a continuidade dos candles nem uptime 24/7."
