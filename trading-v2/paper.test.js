@@ -238,3 +238,41 @@ test('paper runner does not present uncommitted quotes when remote persistence f
  assert.equal(after.positions[0].markPrice,100);
  assert.equal(after.positions[0].entry,100);
 });
+
+
+test('runner sends exact processed candle evidence to persistence without replay',async()=>{
+ const saved=[];
+ const state=createAccount();
+ const cs=candles();
+ const runner=createPaperRunner({store:{
+  kind:'remote',load:async()=>state,
+  save:async(s,meta)=>saved.push({state:structuredClone(s),journal:structuredClone(meta.journal)})
+ },fetchKlines:async()=>({candles:cs})});
+ await runner.init();
+ await runner.runOnce();
+ assert.equal(saved.length,3);
+ assert.deepEqual(saved.map(x=>x.journal.symbol),['BTCUSDT','ETHUSDT','SOLUSDT']);
+ for(const x of saved){
+  assert.equal(x.journal.previousClose,null);
+  assert.equal(x.journal.candleCloseTime,cs.at(-1).closeTime);
+  assert.equal(x.journal.action,x.state.lastDecisions[x.journal.symbol].action);
+  assert.equal(x.journal.reason,x.state.lastDecisions[x.journal.symbol].reason);
+ }
+ await runner.runOnce();
+ assert.equal(saved.length,3);
+});
+test('runner rolls back paper state on failed atomic candle journal transaction',async()=>{
+ const cs=candles();
+ let attempts=0;
+ const runner=createPaperRunner({store:{kind:'remote',
+  load:async()=>createAccount(),
+  save:async()=>{attempts++;throw Error('journal transaction rejected');}
+ },fetchKlines:async()=>({candles:cs})});
+ await runner.init();
+ const state=await runner.runOnce();
+ assert.equal(attempts,1);
+ assert.deepEqual(state.lastCandle,{});
+ assert.equal(state.ready,false);
+ assert.match(state.storageError,/journal transaction rejected/);
+ await assert.rejects(()=>runner.runOnce(),/halted/);
+});
