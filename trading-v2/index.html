@@ -632,6 +632,11 @@ async function refreshPaperEvidence(){
   if(!response.ok)throw Error('HTTP '+response.status);
   const report=await response.json();
   if(!report.ok||report.mode!=='PAPER_EVIDENCE_DIAGNOSTICS')throw Error('Evidências indisponíveis');
+  const journal=await fetch('/api/paper-journal',{cache:'no-store'})
+   .then(r=>r.ok?r.json():null).catch(()=>null);
+  const journalMarkets=Object.fromEntries(
+   (journal?.ok&&Array.isArray(journal.markets)?journal.markets:[])
+    .map(m=>[m.symbol,m]));
   const names={BTCUSDT:'ALPHA • BTC',ETHUSDT:'NOVA • ETH',SOLUSDT:'ORION • SOL'};
   const labels={PAPER_PERSISTENCE_NOT_CONFIRMED:'Persistência paper não confirmada',
    PAPER_RUNNER_NOT_READY:'Motor paper indisponível',
@@ -644,13 +649,19 @@ async function refreshPaperEvidence(){
    UNOBSERVED_SHADOW_6H_SLOTS:'Há períodos sem registros da pesquisa em 6h',
    PAPER_CANDLE_JOURNAL_7D_UNAVAILABLE:'Ainda sem diário paper completo por 7 dias'};
   summary.textContent=' • '+report.results.length+' robôs em análise • sem liberação real';
-  status.textContent='Decisão: ainda faltam observações paper auditadas por '+report.minimumPaperObservationDays+' dias. Cobertura shadow é apenas informação complementar.';
+  status.textContent='Diário real do motor paper: '+(journal?.ok?'gravações atômicas confirmadas desde a ativação':'ainda indisponível')+' • Janela de avaliação: 7 dias completos. Não recuperamos candles antigos artificialmente.';
   root.innerHTML=(report.results||[]).map(r=>{
    const percentage=x=>x===null?'—':Number(x).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
    const gaps=(r.reasons||[]).map(code=>labels[code]||code);
+   const paperJournal=journalMarkets[r.symbol];
+   const journalEvidence=paperJournal
+    ?Number(paperJournal.recorded24h||0)+'/288 candles paper (24h) • '+
+     Number(paperJournal.recorded7d||0)+'/2016 candles paper (7 dias)'
+    :'Diário paper ainda sem confirmação de leitura';
    return '<div class="monitor-coverage-card"><strong>'+esc(names[r.symbol]||r.symbol)+'</strong>'+
     '<div class="monitor-coverage-value">'+(r.paperLastCandleFresh?'CANDLE RECENTE':'VERIFICAR COLETA')+'</div>'+
     '<small>Último candle paper: '+(r.paperLastCloseAt?new Date(r.paperLastCloseAt).toLocaleString('pt-BR'):'desconhecido')+'</small>'+
+    '<small>Gravação paper confirmada: '+esc(journalEvidence)+'</small>'+
     '<small>Pesquisa independente: '+percentage(r.shadowCoverage24hPct)+' (24h) • '+percentage(r.shadowCoverage6hPct)+' (6h)</small>'+
     '<small>Posição paper protegida: '+(r.paperGapLocked?'SIM':'não')+'</small>'+
     '<small>Pendências: '+esc(gaps.join(' • '))+'</small></div>';
