@@ -6,6 +6,8 @@ export function summarizePaperState(state){
   if(!state||!Array.isArray(state.trades))throw new TypeError('A persisted paper state with trades is required');
   const names=['BTCUSDT','ETHUSDT','SOLUSDT'];
   const all=state.trades.filter(t=>t&&t.simulated===true&&names.includes(t.symbol));
+  const snapshot=Array.isArray(state.positions);
+  const partialHistory=snapshot&&state.trades.length>=30;
   const results=names.map(symbol=>{
     const trades=all.filter(t=>t.symbol===symbol);
     const exits=trades.filter(t=>t.side==='SELL'&&finite(t.realizedPnl)).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
@@ -18,7 +20,7 @@ export function summarizePaperState(state){
     let equity=0,peak=0,maxRealizedDrawdown=0;
     for(const t of exits){equity+=t.realizedPnl;peak=Math.max(peak,equity);maxRealizedDrawdown=Math.max(maxRealizedDrawdown,peak-equity);}
     const fees=trades.reduce((s,t)=>s+(finite(t.fee)?t.fee:0),0);
-    const persisted=state.realizedBySymbol?.[symbol];
+    const persisted=snapshot?state.agentPnl?.[symbol]?.realizedPnl:state.realizedBySymbol?.[symbol];
     return {
       symbol,entries:trades.filter(t=>t.side==='BUY').length,
       closedTrades:exits.length,wins:wins.length,losses:losses.length,breakeven,
@@ -32,13 +34,14 @@ export function summarizePaperState(state){
       reconciliationDelta:finite(persisted)?round(persisted-sum):null,
       recordedEventFees:round(fees),
       maxRealizedOnlyDrawdown:round(maxRealizedDrawdown),
-      openPosition:Boolean(state.positions?.[symbol]),
+      openPosition:snapshot?state.positions.some(p=>p.symbol===symbol):Boolean(state.positions?.[symbol]),
       lastExitTime:exits.at(-1)?.time??null,
-      assessment:exits.length<30?'INSUFFICIENT_SAMPLE':'REQUIRES_OUT_OF_SAMPLE_VALIDATION'
+      assessment:partialHistory?'PARTIAL_TRADE_HISTORY':exits.length<30?'INSUFFICIENT_SAMPLE':'REQUIRES_OUT_OF_SAMPLE_VALIDATION'
     };
   });
   return {
-    mode:'PAPER_ANALYSIS_ONLY',source:'PERSISTED_PAPER_STATE',
+    mode:'PAPER_ANALYSIS_ONLY',source:snapshot?'RECENT_PAPER_API_SNAPSHOT':'PERSISTED_PAPER_STATE',
+    partialHistory,scope:snapshot?'RECENT_EVENTS_ONLY':'PERSISTED_STATE_EVENTS',
     updatedAt:state.updatedAt??null,totals:{
       closeEvents:results.reduce((s,r)=>s+r.closedTrades,0),
       realizedPnl:finite(state.realizedPnl)?round(state.realizedPnl):null,
@@ -49,6 +52,7 @@ export function summarizePaperState(state){
       'Realized-only drawdown excludes open-position mark-to-market and is not portfolio max drawdown.',
       'Win rate, profit factor and expectancy are descriptive; they do not prove learning or profitability.',
       'Recorded event fees may already be included in realized PnL; never subtract them twice.',
+      'The public paper endpoint returns at most 30 recent events; totals derived from it may be incomplete.',
       'At least 30 closes is a preliminary sample threshold, not an approval criterion.'
     ],autoPromotionEnabled:false,orderExecutionEnabled:false
   };
