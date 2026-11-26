@@ -35,3 +35,23 @@ test('reconciliation reports differences without altering portfolio state',()=>{
  assert.equal(result.reconciliationDelta,-.0014);
  assert.equal(JSON.stringify(state),original);
 });
+
+test('accepts /api/paper snapshot positions and flags partial history',()=>{
+ const trades=Array.from({length:30},(_,i)=>trade('BTCUSDT',i%2?'BUY':'SELL',i%2?null:-.2,new Date(Date.UTC(2026,10,26,12,i)).toISOString()));
+ const paper={mode:'PAPER_ONLY',positions:[{symbol:'BTCUSDT',quantity:.2}],agentPnl:{BTCUSDT:{realizedPnl:-3}},trades};
+ const result=summarizePaperState(paper);
+ const btc=result.robots[0];
+ assert.equal(result.partialHistory,true);
+ assert.equal(result.source,'RECENT_PAPER_API_SNAPSHOT');
+ assert.equal(btc.openPosition,true);
+ assert.equal(btc.realizedFromPortfolio,-3);
+ assert.equal(btc.closedTrades,15);
+ assert.equal(btc.assessment,'PARTIAL_TRADE_HISTORY');
+ assert.equal(result.orderExecutionEnabled,false);
+});
+test('snapshot with empty positions and events remains insufficient',()=>{
+ const result=summarizePaperState({positions:[],trades:[],agentPnl:{}});
+ assert.equal(result.robots[0].openPosition,false);
+ assert.equal(result.robots[0].closedTrades,0);
+ assert.equal(result.robots[0].assessment,'INSUFFICIENT_SAMPLE');
+});
