@@ -537,6 +537,13 @@ if(path.startsWith('/assets/')){
   return res.end(req.method==='HEAD'?undefined:image);
  }catch{res.writeHead(404);return res.end('Asset missing');}
 }
+if(path==='/laboratorio'||path==='/laboratorio.html'||path==='/paper-lab-metrics.js'){
+ const isModule=path==='/paper-lab-metrics.js';
+ try{const file=await readFile(join(ROOT,isModule?'paper-lab-metrics.js':'laboratorio.html'));
+  res.writeHead(200,{'content-type':isModule?'text/javascript; charset=utf-8':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+  return res.end(req.method==='HEAD'?undefined:file);
+ }catch{res.writeHead(500);return res.end('Lab preview unavailable');}
+}
 if(path==='/'||path==='/index.html'){
 try{const html=await readFile(join(ROOT,'index.html'));res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-cache','x-content-type-options':'nosniff'});return res.end(req.method==='HEAD'?undefined:html);}
 catch{res.writeHead(500);return res.end('Preview unavailable');}}
