@@ -7,6 +7,7 @@ on:
       - 'trading-v2/paper-lab-metrics.js'
       - 'trading-v2/paper-lab-metrics.test.js'
       - 'trading-v2/laboratorio.html'
+      - 'trading-v2/index.html'
       - 'trading-v2/server.js'
       - '.github/workflows/laboratorio-paper-tests.yml'
   workflow_dispatch:
@@ -33,4 +34,4 @@ jobs:
         run: node --test paper-lab-metrics.test.js
       - name: Verify laboratory routes remain read-only
         run: |
-          node --input-type=module -e "import fs from 'node:fs';const html=fs.readFileSync('laboratorio.html','utf8'),s=fs.readFileSync('server.js','utf8');if(!html.includes(\"fetch('/api/paper'\")||!s.includes(\"path==='/laboratorio'\")||!s.includes(\"path==='/paper-lab-metrics.js'\")||html.includes(\"method:'POST'\"))process.exit(1)"
+          node --input-type=module -e "import fs from 'node:fs';const html=fs.readFileSync('laboratorio.html','utf8'),s=fs.readFileSync('server.js','utf8'),index=fs.readFileSync('index.html','utf8');if(!html.includes(\"fetch('/api/paper'\")||!s.includes(\"path==='/laboratorio'\")||!s.includes(\"path==='/paper-lab-metrics.js'\")||html.includes(\"method:'POST'\")||!index.includes('href=\"/laboratorio\"'))process.exit(1)"
