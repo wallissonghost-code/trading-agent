@@ -36,4 +36,4 @@ jobs:
         run: npm test
       - name: Verify laboratory routes remain read-only
         run: |
-          node --input-type=module -e "import fs from 'node:fs';const html=fs.readFileSync('laboratorio.html','utf8'),s=fs.readFileSync('server.js','utf8'),index=fs.readFileSync('index.html','utf8');if(!html.includes(\"fetch('/api/paper'\")||!s.includes(\"path==='/laboratorio'\")||!s.includes(\"path==='/paper-lab-metrics.js'\")||html.includes(\"method:'POST'\")||!index.includes('href=\"/laboratorio\"'))process.exit(1)"
+          node --input-type=module -e "import fs from 'node:fs';const html=fs.readFileSync('laboratorio.html','utf8'),s=fs.readFileSync('server.js','utf8'),index=fs.readFileSync('index.html','utf8');if(!html.includes(\"fetch('/api/paper-lab-report'\")||!s.includes(\"path==='/laboratorio'\")||!s.includes(\"path==='/paper-lab-metrics.js'\")||!s.includes(\"path==='/api/paper-lab-report'\")||html.includes(\"method:'POST'\")||!index.includes('href=\"/laboratorio\"'))process.exit(1)"
