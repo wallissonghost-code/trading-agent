@@ -7,7 +7,7 @@ export function summarizePaperState(state){
   const names=['BTCUSDT','ETHUSDT','SOLUSDT'];
   const all=state.trades.filter(t=>t&&t.simulated===true&&names.includes(t.symbol));
   const snapshot=Array.isArray(state.positions);
-  const partialHistory=snapshot&&state.trades.length>=30;
+  const partialHistory=snapshot&&(state.historyLimited===true||(state.historyLimited!==false&&state.trades.length>=30));
   const results=names.map(symbol=>{
     const trades=all.filter(t=>t.symbol===symbol);
     const exits=trades.filter(t=>t.side==='SELL'&&finite(t.realizedPnl)).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
