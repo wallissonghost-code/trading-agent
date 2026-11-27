@@ -8,6 +8,7 @@ import { buildGapReviewPlan } from './gap-review-plan.js';
 import { authorizeReviewRequest } from './admin-access.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { performance } from './performance.js';
+import { summarizePaperState } from './paper-lab-metrics.js';
 import { summarizeSignalOutcomes } from './signal-evaluation.js';
 import { runStrategyLab } from './strategy-lab.js';
 import { getMultiweekHistory } from './historical-market.js';
@@ -537,6 +538,13 @@ if(path.startsWith('/assets/')){
   return res.end(req.method==='HEAD'?undefined:image);
  }catch{res.writeHead(404);return res.end('Asset missing');}
 }
+if(path==='/laboratorio'||path==='/laboratorio.html'||path==='/paper-lab-metrics.js'){
+ const isModule=path==='/paper-lab-metrics.js';
+ try{const file=await readFile(join(ROOT,isModule?'paper-lab-metrics.js':'laboratorio.html'));
+  res.writeHead(200,{'content-type':isModule?'text/javascript; charset=utf-8':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+  return res.end(req.method==='HEAD'?undefined:file);
+ }catch{res.writeHead(500);return res.end('Lab preview unavailable');}
+}
 if(path==='/'||path==='/index.html'){
 try{const html=await readFile(join(ROOT,'index.html'));res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-cache','x-content-type-options':'nosniff'});return res.end(req.method==='HEAD'?undefined:html);}
 catch{res.writeHead(500);return res.end('Preview unavailable');}}
@@ -583,6 +591,25 @@ else if(path==='/api/gap-reconciliation'||path==='/api/admin/gap-review'){
  data=restricted?{...audit,administrativeReview:buildGapReviewPlan(audit,state)}:audit;
 }
 
+else if(path==='/api/paper-lab-report'){
+ try{
+  const snapshot=paper.status();
+  if(snapshot.ready!==true||snapshot.mode!=='PAPER_ONLY'||snapshot.executionEnabled!==false||snapshot.storageError)
+   throw Error('Paper engine not ready');
+  if(!paperStore?.listTrades)throw Error('Persistent paper ledger unavailable');
+  const ledger=await paperStore.listTrades({limit:100});
+  if(!Array.isArray(ledger))throw Error('Invalid ledger');
+  const metrics=summarizePaperState({...snapshot,trades:ledger,historyLimited:ledger.length>=100});
+  data={ok:true,...metrics,mode:'PAPER_ANALYSIS_ONLY',historySource:'PERSISTED_PAPER_LEDGER',
+   historyLimit:100,asOf:new Date().toISOString(),paperEquity:snapshot.equity,
+   paperCash:snapshot.cash,openPositions:snapshot.positions?.length??0,
+   realOrdersEnabled:false,autoPromotionEnabled:false};
+ }catch(error){
+  console.error('Paper laboratory read error:',String(error.message||error).slice(0,120));
+  data={ok:false,mode:'PAPER_ANALYSIS_ONLY',error:'Laboratório temporariamente indisponível',
+   realOrdersEnabled:false,autoPromotionEnabled:false};
+ }
+}
 else if(path==='/api/performance'){
   try{
     const recent=paperStore?.listTrades?await paperStore.listTrades({limit:100}):paper.status().trades||[];

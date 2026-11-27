@@ -1,0 +1,39 @@
+name: Laboratorio PAPER - Validacao isolada
+on:
+  push:
+    branches:
+      - research/laboratorio-metricas-paper
+    paths:
+      - 'trading-v2/paper-lab-metrics.js'
+      - 'trading-v2/paper-lab-metrics.test.js'
+      - 'trading-v2/laboratorio.html'
+      - 'trading-v2/index.html'
+      - 'trading-v2/server.js'
+      - '.github/workflows/laboratorio-paper-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: trading-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check read-only laboratory syntax
+        run: |
+          node --check paper-lab-metrics.js
+          node --check paper-lab-metrics.test.js
+          node --check server.js
+      - name: Run laboratory unit tests
+        run: node --test paper-lab-metrics.test.js
+      - name: Run complete Trading Agent V2 regression suite
+        run: npm test
+      - name: Verify laboratory routes remain read-only
+        run: |
+          node --input-type=module -e "import fs from 'node:fs';const html=fs.readFileSync('laboratorio.html','utf8'),s=fs.readFileSync('server.js','utf8'),index=fs.readFileSync('index.html','utf8');if(!html.includes(\"fetch('/api/paper-lab-report'\")||!s.includes(\"path==='/laboratorio'\")||!s.includes(\"path==='/paper-lab-metrics.js'\")||!s.includes(\"path==='/api/paper-lab-report'\")||html.includes(\"method:'POST'\")||!index.includes('href=\"/laboratorio\"'))process.exit(1)"
