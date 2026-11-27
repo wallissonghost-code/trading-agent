@@ -11,33 +11,32 @@
 <section class="card"><h2>Comparação entre robôs</h2><table><thead><tr><th>Robô</th><th>Saídas</th><th>Acertos</th><th>Expectativa</th><th>Fator lucro</th><th>Drawdown realizado*</th></tr></thead><tbody id="robots"></tbody></table></section>
 <footer><p class="hint" id="limitations">* Drawdown calculado somente sobre operações encerradas; não representa drawdown máximo da carteira. O histórico retornado pela API pode ser parcial.</p></footer>
 <script type="module">
-import {summarizePaperState} from '/paper-lab-metrics.js';
 const $=id=>document.getElementById(id);
 const fmt=x=>x===null||x===undefined?'—':Number(x).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const label={BTCUSDT:'ALPHA / BTC',ETHUSDT:'NOVA / ETH',SOLUSDT:'ORION / SOL'};
 function cell(row,text){const d=document.createElement('td');d.textContent=String(text);row.append(d);}
 function card(title,value,hint){const d=document.createElement('div');d.className='card';for(const [tag,text] of [['small',title],['strong',value],['p',hint]]){const e=document.createElement(tag);e.textContent=text;d.append(e);}return d;}
 async function refresh(){
- $('refresh').disabled=true;$('status').textContent='Consultando /api/paper...';
+ $('refresh').disabled=true;$('status').textContent='Consultando o diário PAPER...';
  try{
-  const r=await fetch('/api/paper',{cache:'no-store'});
+  const r=await fetch('/api/paper-lab-report',{cache:'no-store'});
   if(!r.ok)throw Error('HTTP '+r.status);
   const paper=await r.json();
-  if(paper.ready!==true||paper.mode!=='PAPER_ONLY'||paper.executionEnabled!==false||!Array.isArray(paper.trades))throw Error('Dados PAPER não disponíveis ou modo não confirmado');
-  const report=summarizePaperState(paper);
+  if(paper.ok!==true||paper.mode!=='PAPER_ANALYSIS_ONLY'||paper.realOrdersEnabled!==false||!Array.isArray(paper.robots))throw Error('Métricas PAPER não disponíveis ou modo não confirmado');
+  const report=paper;
   const cards=$('cards');cards.replaceChildren(
-   card('Posições abertas',String(paper.positions?.length??'—'),'Somente carteira PAPER'),
-   card('Resultado realizado total',fmt(paper.realizedPnl)+' USDT','Valor informado pelo motor PAPER'),
-   card('Saídas na amostra',String(report.totals.closeEvents),report.partialHistory?'Somente os 30 eventos recentes':'Histórico recente disponível'),
-   card('Patrimônio estimado',fmt(paper.equity)+' USDT','Inclui marcação das posições abertas')
+   card('Posições abertas',String(paper.openPositions??'—'),'Somente carteira PAPER'),
+   card('Resultado realizado total',fmt(paper.totals?.realizedPnl)+' USDT','Valor informado pelo motor PAPER'),
+   card('Saídas na amostra',String(report.totals.closeEvents),report.partialHistory?'Limite de 100 eventos atingido':'Diário persistido consultado'),
+   card('Patrimônio estimado',fmt(paper.paperEquity)+' USDT','Inclui marcação das posições abertas')
   );
   const rows=$('robots');rows.replaceChildren();
   for(const x of report.robots){
    const tr=document.createElement('tr');
    cell(tr,label[x.symbol]);cell(tr,x.closedTrades);cell(tr,x.winRatePct===null?'—':fmt(x.winRatePct)+'%');cell(tr,fmt(x.expectancyPerClose)+' USDT');cell(tr,fmt(x.profitFactor));cell(tr,fmt(x.maxRealizedOnlyDrawdown)+' USDT');rows.append(tr);
   }
-  $('status').textContent='Última atualização: '+new Date().toLocaleString('pt-BR')+(report.partialHistory?' • amostra de operações limitada pela API':'')+'. Nenhuma estratégia foi alterada.';
-  $('limitations').textContent='* Drawdown realizado exclui PnL não realizado. Estatísticas por robô calculadas somente sobre os eventos retornados pela API, não necessariamente todo o histórico. Amostra insuficiente para validar estratégias.';
+  $('status').textContent='Última atualização: '+new Date().toLocaleString('pt-BR')+(report.partialHistory?' • amostra limitada a 100 eventos':'')+'. Nenhuma estratégia foi alterada.';
+  $('limitations').textContent='* Drawdown realizado exclui PnL não realizado. Estatísticas por robô calculadas sobre até 100 eventos do diário persistido, sem histórico retroativo ao início da coleta. Amostra insuficiente para validar estratégias.';
  }catch(e){$('status').textContent='Falha ao consultar os dados PAPER: '+e.message;}
  finally{$('refresh').disabled=false;}
 }
