@@ -16,7 +16,7 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     defaults:
       run:
         working-directory: trading-v2
@@ -32,6 +32,8 @@ jobs:
           node --check server.js
       - name: Run laboratory unit tests
         run: node --test paper-lab-metrics.test.js
+      - name: Run complete Trading Agent V2 regression suite
+        run: npm test
       - name: Verify laboratory routes remain read-only
         run: |
           node --input-type=module -e "import fs from 'node:fs';const html=fs.readFileSync('laboratorio.html','utf8'),s=fs.readFileSync('server.js','utf8'),index=fs.readFileSync('index.html','utf8');if(!html.includes(\"fetch('/api/paper'\")||!s.includes(\"path==='/laboratorio'\")||!s.includes(\"path==='/paper-lab-metrics.js'\")||html.includes(\"method:'POST'\")||!index.includes('href=\"/laboratorio\"'))process.exit(1)"
